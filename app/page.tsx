@@ -193,7 +193,7 @@ export default function MedicalPortal() {
 
             {/* Navbar */}
             <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#0B1120]/95 backdrop-blur-md">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
 
                         {/* Brand Logo */}
@@ -299,10 +299,10 @@ export default function MedicalPortal() {
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            {/* Main Content - max-w-5xl keeps desktop compact and centered */}
+            <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 sm:py-9">
 
-                {/* Top Feature Grid */}
+                {/* Top 5 Feature Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-9">
 
                     <Link
@@ -364,14 +364,14 @@ export default function MedicalPortal() {
 
                 {/* Section Title */}
                 <div className="flex items-center gap-2 mb-4">
-                    <BookOpen size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    <BookOpen size={19} className="text-emerald-600 dark:text-emerald-400" />
                     <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                         বিষয়ভিত্তিক প্রস্তুতি
                     </h2>
                 </div>
 
-                {/* Subjects Grid (Mobile: 2 Column, Tablet: 3 Column, Desktop: 4 Column) */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+                {/* Subjects Grid: Mobile 2 columns, Tablet 2 columns, Desktop 3 solid columns */}
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5">
                     {medicalSubjects.map((subject) => {
                         const Icon = subject.icon;
                         return (
@@ -379,7 +379,7 @@ export default function MedicalPortal() {
                                 key={subject.id}
                                 href={`/qbank?category=medical&subject=${encodeURIComponent(subject.id)}`}
                                 onClick={handleFeatureClick}
-                                className="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-xs"
+                                className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/40 dark:hover:border-emerald-500/30 transition-all shadow-xs"
                             >
                                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                                     <div className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl ${subject.bg} ${subject.color}`}>
@@ -389,7 +389,7 @@ export default function MedicalPortal() {
                                         {subject.name}
                                     </span>
                                 </div>
-                                <ChevronRight size={15} className="text-slate-400 shrink-0 hidden xs:block" />
+                                <ChevronRight size={16} className="text-slate-400 shrink-0 hidden sm:block" />
                             </Link>
                         );
                     })}
