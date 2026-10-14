@@ -41,7 +41,7 @@ import syllabusData from '@/app/constants/syllabusData.json';
 /* Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const DATA_CACHE_VERSION = 'v1.3';
+const DATA_CACHE_VERSION = 'v1.4';
 const CACHE_VERSION_KEY = 'adq_qbank_cache_version';
 const CACHE_PREFIX = 'qbank_cache_';
 const CACHE_INDEX_KEY = 'adq_qbank_cache_index';
