@@ -1,6 +1,15 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  getDoc as originalGetDoc,
+  getDocs as originalGetDocs,
+  DocumentReference,
+  Query,
+  DocumentSnapshot,
+  QuerySnapshot,
+  DocumentData
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,8 +21,30 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// অ্যাপ আগে থেকে ইনিশিয়ালাইজ করা না থাকলে নতুন করে করবে
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// 🔍 Browser Console Live Read Tracker
+export const monitoredGetDoc = async <T = DocumentData>(ref: DocumentReference<T>): Promise<DocumentSnapshot<T>> => {
+  const start = Date.now();
+  const snap = await originalGetDoc(ref);
+  const time = Date.now() - start;
+
+  console.log(
+    `🔥 [FIRESTORE READ: ${snap.exists() ? 1 : 0} Doc] ${new Date().toLocaleTimeString()} | Path: ${ref.path} | Time: ${time}ms`
+  );
+  return snap;
+};
+
+export const monitoredGetDocs = async <T = DocumentData>(q: Query<T>): Promise<QuerySnapshot<T>> => {
+  const start = Date.now();
+  const snap = await originalGetDocs(q);
+  const time = Date.now() - start;
+
+  console.log(
+    `🔥 [FIRESTORE READ: ${snap.size} Docs] ${new Date().toLocaleTimeString()} | Read Count: ${snap.size} | Time: ${time}ms`
+  );
+  return snap;
+};

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { ThemeProvider } from '@/components/ThemeProvider'; // <-- এই লাইনটি মিসিং ছিল
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const viewport: Viewport = {
   themeColor: '#059669',
@@ -31,6 +31,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="bn" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+
+        {/* Noto Sans Bengali সরাসরি CDN থেকে লোড */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+
+        {/* KaTeX CSS */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="bg-slate-50 dark:bg-[#0B1120] min-h-screen antialiased">
         <ThemeProvider>
           {children}

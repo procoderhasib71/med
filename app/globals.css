@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* বাটনে ক্লিক করে ডার্ক মোড অন/অফ করার জন্য Tailwind v4 এর নিয়ম */
 @variant dark (&:is(.dark *));
 
 :root {
@@ -9,26 +7,56 @@
   --foreground: #171717;
 }
 
-/* ডার্ক মোড ক্লাসের জন্য কালার */
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  /* পরিষ্কার বাংলা ফন্ট Noto Sans Bengali */
-  --font-sans: 'Noto Sans Bengali', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: var(--font-geist-mono);
+/* উইন্ডোজের ডিফল্ট Nirmala UI ব্লক করে Noto Sans Bengali নিশ্চিত করা */
+html,
+body,
+div,
+span,
+p,
+h1,
+h2,
+h3,
+button,
+input,
+textarea {
+  font-family: 'Noto Sans Bengali', sans-serif !important;
+  text-rendering: geometricPrecision !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
 }
 
-html,
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Noto Sans Bengali', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+/* KaTeX সমীকরণের ফন্ট অপরিবর্তিত রাখা */
+.katex,
+.katex * {
+  font-family: KaTeX_Main, 'Times New Roman', serif !important;
+}
+
+/* KaTeX আন্ডারলাইন ফিক্স */
+.katex .underline>.line {
+  border-bottom-width: 0.08em !important;
+  border-bottom-style: solid !important;
+  border-bottom-color: currentColor !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+.katex .underline {
+  padding-bottom: 2px !important;
+}
+
+/* 🚀 ব্রাউজারের কুৎসিত সাদা স্ক্রলবার লুকানো কিন্তু স্ক্রলিং সক্রিয় রাখা */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }

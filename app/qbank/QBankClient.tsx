@@ -1,17 +1,274 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, Loader2, Moon, Sun, ArrowLeft, Bookmark, Lightbulb, CheckCircle2, XCircle, SlidersHorizontal, RotateCcw, Check } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
+import {
+    ChevronDown,
+    Loader2,
+    Moon,
+    Sun,
+    ArrowLeft,
+    Bookmark,
+    Lightbulb,
+    CheckCircle2,
+    XCircle,
+    SlidersHorizontal,
+    RotateCcw,
+    Check,
+    Flag,
+    AlertCircle,
+    Search
+} from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useTheme } from '@/hooks/useTheme';
-import { fetchFilteredQuestions } from './actions';
-import { doc, writeBatch, increment, arrayRemove, arrayUnion, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { fetchFilteredQuestions, Question } from './actions';
+import {
+    doc,
+    writeBatch,
+    increment,
+    arrayRemove,
+    arrayUnion,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
+    deleteField
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
-import { Question } from './actions';
+import { db, auth, monitoredGetDoc as getDoc } from '@/lib/firebase';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
+import syllabusData from '@/app/constants/syllabusData.json';
 
-function CustomDropdown({ options, value, onChange, placeholder }: any) {
+/* ------------------------------------------------------------------ */
+/* Constants                                                          */
+/* ------------------------------------------------------------------ */
+
+const DATA_CACHE_VERSION = 'v1.3';
+const CACHE_VERSION_KEY = 'adq_qbank_cache_version';
+const CACHE_PREFIX = 'qbank_cache_';
+const CACHE_INDEX_KEY = 'adq_qbank_cache_index';
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 60;
+
+const PAGE_SIZE = 10;
+const BATCH_QUESTION_THRESHOLD = 5;
+
+const LEGACY_PENDING_KEY = 'qbank_pending_sync_queue';
+const pendingKey = (uid: string) => `qbank_pending_${uid}`;
+const TAB_ID = Math.random().toString(36).slice(2);
+const inflightPrefix = (uid: string) => `qbank_inflight_${uid}_`;
+const inflightKey = (uid: string) => `${inflightPrefix(uid)}${TAB_ID}`;
+const mistakeCounterKey = (uid: string) => `adq_persistent_mistake_counter_${uid}`;
+const INFLIGHT_STALE_MS = 30 * 1000;
+
+const MISTAKE_CAP = 500;
+const MISTAKE_PRUNE_EVERY = 50;
+
+const syllabus = syllabusData as Record<string, Record<string, { topics: string[]; sources: string[] }>>;
+
+const emptyFilters = {
+    subject: '',
+    chapter: '',
+    topic: '',
+    source: '',
+    varsity: '',
+    year: ''
+};
+type Filters = typeof emptyFilters;
+
+/* ------------------------------------------------------------------ */
+/* Safe localStorage wrapper                                          */
+/* ------------------------------------------------------------------ */
+
+const safeStorage = {
+    getItem: (key: string): string | null => {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                return localStorage.getItem(key);
+            }
+        } catch {
+            return null;
+        }
+        return null;
+    },
+    setItem: (key: string, value: string): boolean => {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.setItem(key, value);
+                return true;
+            }
+        } catch {
+            return false;
+        }
+        return false;
+    },
+    removeItem: (key: string): void => {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.removeItem(key);
+            }
+        } catch {
+            // Error ignored
+        }
+    }
+};
+
+const readJSON = (key: string): any => {
+    const raw = safeStorage.getItem(key);
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        safeStorage.removeItem(key);
+        return null;
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* Cache helpers                                                      */
+/* ------------------------------------------------------------------ */
+
+const readIndex = (): string[] => {
+    const v = readJSON(CACHE_INDEX_KEY);
+    return Array.isArray(v) ? v.filter((k: unknown): k is string => typeof k === 'string') : [];
+};
+
+const evictCache = (ratio: number) => {
+    const index = readIndex();
+    const n = Math.ceil(index.length * ratio);
+    index.slice(0, n).forEach((k) => safeStorage.removeItem(k));
+    safeStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(index.slice(n)));
+};
+
+const readCache = (key: string, allowStale: boolean): Question[] | null => {
+    const parsed = readJSON(key);
+    if (!parsed || !Array.isArray(parsed.d) || typeof parsed.t !== 'number') {
+        if (parsed) safeStorage.removeItem(key);
+        return null;
+    }
+    if (!allowStale && Date.now() - parsed.t >= CACHE_TTL_MS) return null;
+    return parsed.d as Question[];
+};
+
+const writeCache = (key: string, data: Question[]) => {
+    const payload = JSON.stringify({ t: Date.now(), d: data });
+    let ok = safeStorage.setItem(key, payload);
+    if (!ok) {
+        evictCache(0.5);
+        ok = safeStorage.setItem(key, payload);
+    }
+    if (!ok) return;
+
+    const index = readIndex().filter((k) => k !== key);
+    index.push(key);
+    while (index.length > CACHE_MAX_ENTRIES) {
+        const old = index.shift();
+        if (old) safeStorage.removeItem(old);
+    }
+    safeStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(index));
+};
+
+const getCacheKey = (pageNo: number, f: Filters) =>
+    `${CACHE_PREFIX}${f.subject}_${f.chapter}_${f.topic}_${f.source}_${f.varsity}_${f.year}_p${pageNo}`;
+
+const appendUnique = (prev: Question[], next: Question[]) => {
+    const seen = new Set(prev.map((x) => String(x.id)));
+    return [...prev, ...next.filter((x) => !seen.has(String(x.id)))];
+};
+
+/* ------------------------------------------------------------------ */
+/* Queue helpers (Subject-wise Solved Tracking)                       */
+/* ------------------------------------------------------------------ */
+
+interface PendingSessionData {
+    attempted: number;
+    correct: number;
+    score: number;
+    solvedBySubject: Record<string, string[]>;
+    subjects: Record<string, { subject: string; attempted: number; correct: number }>;
+    chapters: Record<string, { subject: string; chapter: string; attempted: number; correct: number }>;
+    mistakes: Record<string, { id: string; userAnswer: string; timestamp: number }>;
+}
+
+interface AnswerEntry {
+    qId: string;
+    answer: string;
+    correct: boolean;
+    subject: string;
+    chapter: string;
+}
+
+const getEmptyQueue = (): PendingSessionData => ({
+    attempted: 0,
+    correct: 0,
+    score: 0,
+    solvedBySubject: {},
+    subjects: {},
+    chapters: {},
+    mistakes: {}
+});
+
+const sanitizeQueue = (raw: any): PendingSessionData => {
+    const q = getEmptyQueue();
+    if (!raw || typeof raw !== 'object') return q;
+    q.attempted = Number(raw.attempted) || 0;
+    q.correct = Number(raw.correct) || 0;
+    q.score = Number(raw.score) || 0;
+    q.solvedBySubject = raw.solvedBySubject && typeof raw.solvedBySubject === 'object' ? raw.solvedBySubject : {};
+    q.subjects = raw.subjects && typeof raw.subjects === 'object' ? raw.subjects : {};
+    q.chapters = raw.chapters && typeof raw.chapters === 'object' ? raw.chapters : {};
+    q.mistakes = raw.mistakes && typeof raw.mistakes === 'object' ? raw.mistakes : {};
+    return q;
+};
+
+const mergeQueues = (target: PendingSessionData, src: PendingSessionData) => {
+    target.attempted += src.attempted;
+    target.correct += src.correct;
+    target.score += src.score;
+
+    for (const [subKey, ids] of Object.entries(src.solvedBySubject || {})) {
+        const existing = target.solvedBySubject[subKey] || [];
+        target.solvedBySubject[subKey] = Array.from(new Set([...existing, ...ids]));
+    }
+
+    for (const [k, v] of Object.entries(src.subjects)) {
+        const t = (target.subjects[k] ||= { subject: v.subject, attempted: 0, correct: 0 });
+        t.attempted += v.attempted;
+        t.correct += v.correct;
+    }
+    for (const [k, v] of Object.entries(src.chapters)) {
+        const t = (target.chapters[k] ||= { subject: v.subject, chapter: v.chapter, attempted: 0, correct: 0 });
+        t.attempted += v.attempted;
+        t.correct += v.correct;
+    }
+    for (const [k, v] of Object.entries(src.mistakes)) {
+        const existing = target.mistakes[k];
+        if (!existing || (v.timestamp || 0) >= (existing.timestamp || 0)) target.mistakes[k] = v;
+    }
+};
+
+const persistQueue = (uid: string, q: PendingSessionData) => {
+    if (q.attempted === 0) {
+        safeStorage.removeItem(pendingKey(uid));
+        return;
+    }
+    const payload = JSON.stringify(q);
+    if (!safeStorage.setItem(pendingKey(uid), payload)) {
+        evictCache(1);
+        safeStorage.setItem(pendingKey(uid), payload);
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* Dropdown Component                                                 */
+/* ------------------------------------------------------------------ */
+
+interface CustomDropdownProps {
+    options: string[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+}
+
+function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -24,19 +281,19 @@ function CustomDropdown({ options, value, onChange, placeholder }: any) {
     }, []);
 
     return (
-        <div className="relative flex-1 min-w-[140px]" ref={dropdownRef}>
+        <div className="relative w-full" ref={dropdownRef}>
             <div
-                className="flex items-center justify-between border border-slate-200/90 dark:border-slate-800 p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 cursor-pointer text-xs sm:text-sm font-medium focus:outline-none min-h-[42px] shadow-xs transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+                className="flex items-center justify-between border border-slate-200/90 dark:border-slate-800/90 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-50/70 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 cursor-pointer text-[11px] sm:text-xs md:text-sm font-medium focus:outline-none min-h-[34px] sm:min-h-[38px] transition-all hover:border-emerald-500/40"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className="truncate pr-1.5">{value || placeholder}</span>
-                <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                <span className="truncate pr-1">{value || placeholder}</span>
+                <ChevronDown size={13} className="text-slate-400 shrink-0" />
             </div>
 
             {isOpen && (
-                <div className="absolute z-[100] min-w-full w-max max-w-[90vw] mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-60 overflow-y-auto p-1 backdrop-blur-md">
+                <div className="absolute z-[100] min-w-full w-max max-w-[85vw] sm:max-w-xs mt-1 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1 backdrop-blur-md">
                     <div
-                        className="px-3 py-2 text-xs sm:text-sm cursor-pointer rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold whitespace-nowrap mb-1"
+                        className="px-2.5 py-1.5 text-[11px] sm:text-xs cursor-pointer rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold truncate mb-0.5"
                         onClick={() => { onChange(''); setIsOpen(false); }}
                     >
                         {placeholder}
@@ -44,10 +301,10 @@ function CustomDropdown({ options, value, onChange, placeholder }: any) {
                     {options.map((opt: string) => (
                         <div
                             key={opt}
-                            className={`flex items-center justify-between px-3 py-2 text-xs sm:text-sm rounded-lg cursor-pointer transition-colors whitespace-nowrap ${value === opt ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/70'}`}
+                            className={`flex items-center justify-between px-2.5 py-1.5 text-[11px] sm:text-xs rounded-lg cursor-pointer transition-colors ${value === opt ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'}`}
                             onClick={() => { onChange(opt); setIsOpen(false); }}
                         >
-                            <span>{opt}</span>
+                            <span className="truncate">{opt}</span>
                         </div>
                     ))}
                 </div>
@@ -56,7 +313,11 @@ function CustomDropdown({ options, value, onChange, placeholder }: any) {
     );
 }
 
-export default function QBankClient({ allMappings = [] }: { allMappings?: any[] }) {
+/* ------------------------------------------------------------------ */
+/* Main Client Logic                                                  */
+/* ------------------------------------------------------------------ */
+
+function QBankInner() {
     const { isDarkMode, toggleTheme } = useTheme();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -76,6 +337,7 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
 
     const initialSubject = urlSubject ? (subjectMapping[urlSubject] || urlSubject) : '';
 
+    const [currentUser, setCurrentUser] = useState<any>(null);
     const [mode, setMode] = useState<'practice' | 'solve'>('practice');
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 
@@ -83,50 +345,380 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const [reloadTick, setReloadTick] = useState(0);
+    const loadErrorRef = useRef(false);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [filters, setFilters] = useState({
-        subject: initialSubject, 
-        chapter: '', 
-        topic: '', 
-        source: '',
-        varsity: '',
-        year: ''
-    });
+
+    const [filters, setFilters] = useState<Filters>({ ...emptyFilters, subject: initialSubject });
+    const [activeFilters, setActiveFilters] = useState<Filters>({ ...emptyFilters, subject: initialSubject });
 
     const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
     const [solvedIds, setSolvedIds] = useState<Set<string>>(new Set());
 
-    // ⭐️ Reload safe Auth & Firestore Single Read listener
-    useEffect(() => {
-        let unsubscribeDoc: (() => void) | null = null;
+    const [reportingQuestion, setReportingQuestion] = useState<Question | null>(null);
+    const [reportReason, setReportReason] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
 
+    const [toast, setToast] = useState<string | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clickedQuestionsRef = useRef<Set<string>>(new Set());
+
+    const showToast = useCallback((message: string) => {
+        setToast(message);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    const isSyncingRef = useRef<boolean>(false);
+    const storageOkRef = useRef<boolean>(false);
+    const memQueueRef = useRef<{ uid: string | null; q: PendingSessionData }>({ uid: null, q: getEmptyQueue() });
+    const authReadyRef = useRef<boolean>(false);
+    const earlyAnswersRef = useRef<AnswerEntry[]>([]);
+
+    const readQueue = useCallback((uid: string): PendingSessionData => {
+        if (storageOkRef.current) return sanitizeQueue(readJSON(pendingKey(uid)));
+        return memQueueRef.current.uid === uid ? memQueueRef.current.q : getEmptyQueue();
+    }, []);
+
+    const writeQueue = useCallback((uid: string, q: PendingSessionData) => {
+        memQueueRef.current = { uid, q };
+        if (storageOkRef.current) persistQueue(uid, q);
+    }, []);
+
+    const recordAnswer = useCallback((uid: string, e: AnswerEntry): number => {
+        const q = readQueue(uid);
+        q.attempted += 1;
+        if (e.correct) {
+            q.correct += 1;
+            q.score += 1;
+        }
+
+        // Database er nam onujayi subject store kora
+        const subKey = e.subject.trim();
+        if (!q.solvedBySubject[subKey]) q.solvedBySubject[subKey] = [];
+        if (!q.solvedBySubject[subKey].includes(e.qId)) {
+            q.solvedBySubject[subKey].push(e.qId);
+        }
+
+        if (!q.subjects[subKey]) q.subjects[subKey] = { subject: e.subject, attempted: 0, correct: 0 };
+        q.subjects[subKey].attempted += 1;
+        if (e.correct) q.subjects[subKey].correct += 1;
+
+        const chapKey = `${e.subject}_${e.chapter}`;
+        if (!q.chapters[chapKey]) q.chapters[chapKey] = { subject: e.subject, chapter: e.chapter, attempted: 0, correct: 0 };
+        q.chapters[chapKey].attempted += 1;
+        if (e.correct) q.chapters[chapKey].correct += 1;
+
+        if (!e.correct) {
+            q.mistakes[e.qId] = { id: e.qId, userAnswer: e.answer, timestamp: Date.now() };
+        }
+
+        writeQueue(uid, q);
+        return q.attempted;
+    }, [readQueue, writeQueue]);
+
+    const recoverOrphans = useCallback((uid: string) => {
+        let keys: string[] = [];
+        try {
+            keys = Object.keys(localStorage);
+        } catch {
+            return;
+        }
+        const prefix = inflightPrefix(uid);
+        const q = readQueue(uid);
+        let merged = false;
+
+        keys.forEach((key) => {
+            if (!key.startsWith(prefix) || key === inflightKey(uid)) return;
+            const rec = readJSON(key);
+            if (!rec || !rec.data) {
+                safeStorage.removeItem(key);
+                return;
+            }
+            if (Date.now() - (Number(rec.startedAt) || 0) < INFLIGHT_STALE_MS) return;
+            mergeQueues(q, sanitizeQueue(rec.data));
+            safeStorage.removeItem(key);
+            merged = true;
+        });
+
+        if (merged) writeQueue(uid, q);
+    }, [readQueue, writeQueue]);
+
+    const pruneMistakesIfNeeded = useCallback(async (uid: string) => {
+        const counterKey = mistakeCounterKey(uid);
+        if (Number(safeStorage.getItem(counterKey) || 0) < MISTAKE_PRUNE_EVERY) return;
+        safeStorage.setItem(counterKey, '0');
+
+        try {
+            const mistakeRef = doc(db, 'users', uid, 'stats', 'mistakes');
+            const snap = await getDoc(mistakeRef);
+            if (!snap.exists()) return;
+
+            const snapData = snap.data() as Record<string, any>;
+            const hasItems = !!snapData.items && typeof snapData.items === 'object';
+            const items = (hasItems ? snapData.items : snapData) as Record<string, any>;
+            const entries = Object.entries(items).filter(([, val]) => val && typeof val === 'object' && val.timestamp);
+
+            if (entries.length <= MISTAKE_CAP) return;
+
+            entries.sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+            const toDelete = entries.slice(0, entries.length - MISTAKE_CAP);
+
+            const updates: Record<string, any> = {};
+            toDelete.forEach(([id]) => {
+                if (hasItems) {
+                    updates[`items.${id}`] = deleteField();
+                } else {
+                    updates[id] = deleteField();
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await updateDoc(mistakeRef, updates);
+            }
+        } catch (err) {
+            console.error('Mistake prune error:', err);
+        }
+    }, []);
+
+    // 🚀 BATCH SYNC: Subject-wise Bucketing
+    const flushPendingSync = useCallback(async () => {
+        const user = auth.currentUser;
+        if (!user || isSyncingRef.current) return;
+        const uid = user.uid;
+
+        const data = readQueue(uid);
+        if (data.attempted === 0) return;
+
+        isSyncingRef.current = true;
+        let success = false;
+
+        if (storageOkRef.current) {
+            safeStorage.setItem(inflightKey(uid), JSON.stringify({ owner: TAB_ID, startedAt: Date.now(), data }));
+        }
+        writeQueue(uid, getEmptyQueue());
+
+        try {
+            const batch = writeBatch(db);
+
+            // ১. User Document Count
+            const userRef = doc(db, 'users', uid);
+            batch.set(userRef, {
+                totalAttempted: increment(data.attempted),
+                totalCorrect: increment(data.correct),
+                totalScore: increment(data.score)
+            }, { merge: true });
+
+            // ২. Subject-wise Solved Bucketing: sorasori bangla subject doc
+            Object.entries(data.solvedBySubject).forEach(([subjectName, ids]) => {
+                if (ids.length > 0) {
+                    const subjectSolvedRef = doc(db, 'users', uid, 'solved_by_subject', subjectName.trim());
+                    batch.set(subjectSolvedRef, {
+                        ids: arrayUnion(...ids)
+                    }, { merge: true });
+                }
+            });
+
+            // ৩. stats/progress Doc
+            const progressRef = doc(db, 'users', uid, 'stats', 'progress');
+            const progressUpdate: Record<string, any> = { subjects: {}, chapters: {} };
+
+            Object.entries(data.subjects).forEach(([key, val]) => {
+                progressUpdate.subjects[key] = {
+                    subject: val.subject,
+                    totalAttempted: increment(val.attempted),
+                    correctAnswers: increment(val.correct)
+                };
+            });
+
+            Object.entries(data.chapters).forEach(([key, val]) => {
+                progressUpdate.chapters[key] = {
+                    subject: val.subject,
+                    chapter: val.chapter,
+                    totalAttempted: increment(val.attempted),
+                    correctAnswers: increment(val.correct)
+                };
+            });
+            batch.set(progressRef, progressUpdate, { merge: true });
+
+            // ৪. stats/mistakes Doc
+            const newMistakesCount = Object.keys(data.mistakes).length;
+            if (newMistakesCount > 0) {
+                const mistakeRef = doc(db, 'users', uid, 'stats', 'mistakes');
+                batch.set(mistakeRef, { items: data.mistakes }, { merge: true });
+            }
+
+            await batch.commit();
+            success = true;
+
+            safeStorage.removeItem(inflightKey(uid));
+
+            if (newMistakesCount > 0) {
+                const counterKey = mistakeCounterKey(uid);
+                const current = Number(safeStorage.getItem(counterKey) || 0);
+                safeStorage.setItem(counterKey, String(current + newMistakesCount));
+            }
+        } catch (err) {
+            console.error("Firestore sync error:", err);
+            const current = readQueue(uid);
+            mergeQueues(current, data);
+            writeQueue(uid, current);
+            safeStorage.removeItem(inflightKey(uid));
+        } finally {
+            isSyncingRef.current = false;
+        }
+
+        if (success) {
+            await pruneMistakesIfNeeded(uid);
+            if (readQueue(uid).attempted >= BATCH_QUESTION_THRESHOLD) {
+                flushPendingSync();
+            }
+        }
+    }, [readQueue, writeQueue, pruneMistakesIfNeeded]);
+
+    useEffect(() => {
+        const testKey = '__adq_storage_test__';
+        storageOkRef.current = safeStorage.setItem(testKey, '1') && safeStorage.getItem(testKey) === '1';
+        safeStorage.removeItem(testKey);
+
+        const currentSavedVersion = safeStorage.getItem(CACHE_VERSION_KEY);
+        if (currentSavedVersion !== DATA_CACHE_VERSION) {
+            try {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    Object.keys(localStorage).forEach((key) => {
+                        if (key.startsWith(CACHE_PREFIX)) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                }
+            } catch {
+                // Ignore
+            }
+            safeStorage.removeItem(CACHE_INDEX_KEY);
+            safeStorage.setItem(CACHE_VERSION_KEY, DATA_CACHE_VERSION);
+        }
+    }, []);
+
+    // 🎯 Auth State & User Profile Load
+    useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                const userRef = doc(db, 'users', user.uid);
-                unsubscribeDoc = onSnapshot(userRef, (docSnap) => {
+            authReadyRef.current = true;
+            setCurrentUser(user);
+
+            if (!user) {
+                setBookmarkedIds(new Set());
+                setSolvedIds(new Set());
+                earlyAnswersRef.current = [];
+                return;
+            }
+
+            const uid = user.uid;
+
+            const legacy = readJSON(LEGACY_PENDING_KEY);
+            if (legacy) {
+                const q = readQueue(uid);
+                mergeQueues(q, sanitizeQueue(legacy));
+                writeQueue(uid, q);
+                safeStorage.removeItem(LEGACY_PENDING_KEY);
+            }
+
+            recoverOrphans(uid);
+            flushPendingSync();
+
+            if (earlyAnswersRef.current.length > 0) {
+                const early = earlyAnswersRef.current;
+                earlyAnswersRef.current = [];
+                let attempted = 0;
+                early.forEach((entry) => {
+                    attempted = recordAnswer(uid, entry);
+                });
+                if (attempted >= BATCH_QUESTION_THRESHOLD) flushPendingSync();
+            }
+
+            (async () => {
+                try {
+                    const userRef = doc(db, 'users', uid);
+                    const docSnap = await getDoc(userRef);
+                    if (auth.currentUser?.uid !== uid) return;
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         setBookmarkedIds(new Set((data.bookmarks || []).map(String)));
-                        setSolvedIds(new Set((data.solved || []).map(String)));
                     }
-                });
-            } else {
-                setBookmarkedIds(new Set());
-                setSolvedIds(new Set());
-                if (unsubscribeDoc) unsubscribeDoc();
-            }
+                } catch (e) {
+                    console.error("User doc fetch error:", e);
+                }
+            })();
         });
 
-        return () => {
-            unsubscribeAuth();
-            if (unsubscribeDoc) unsubscribeDoc();
+        return () => unsubscribeAuth();
+    }, [flushPendingSync, readQueue, writeQueue, recordAnswer, recoverOrphans]);
+
+    // 🎯 Solved IDs Database Sync (Refresh korleo solved badge theke jabe)
+    useEffect(() => {
+        if (!currentUser || !activeFilters.subject) return;
+
+        const uid = currentUser.uid;
+        const subDocName = activeFilters.subject.trim();
+
+        (async () => {
+            try {
+                const subjectSolvedRef = doc(db, 'users', uid, 'solved_by_subject', subDocName);
+                const snap = await getDoc(subjectSolvedRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    const ids: string[] = Array.isArray(data.ids) ? data.ids.map(String) : [];
+                    setSolvedIds(prev => new Set([...prev, ...ids]));
+                }
+            } catch (err) {
+                console.error("Subject solved fetch error:", err);
+            }
+        })();
+    }, [currentUser, activeFilters.subject]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') flushPendingSync();
         };
-    }, []);
+        const handleLeave = () => { flushPendingSync(); };
+        const handleOnline = () => { flushPendingSync(); };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', handleLeave);
+        window.addEventListener('pagehide', handleLeave);
+        window.addEventListener('online', handleOnline);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleLeave);
+            window.removeEventListener('pagehide', handleLeave);
+            window.removeEventListener('online', handleOnline);
+            flushPendingSync();
+        };
+    }, [flushPendingSync]);
+
+    const quickReportOptions = [
+        'ভুল উত্তর মার্ক করা',
+        'টাইপো / বানান ভুল',
+        'ব্যাখ্যায় ভুল আছে',
+        'অপশন বা প্রশ্নে তথ্য মিসিং',
+        'একাধিক সঠিক উত্তর আছে',
+        'প্রশ্নটি সিলেবাসের বাইরে'
+    ];
+
+    const handleQuickTagClick = (tag: string) => {
+        setReportReason(prev => {
+            if (!prev.trim()) return tag;
+            if (prev.includes(tag)) return prev;
+            return `${prev}, ${tag}`;
+        });
+    };
 
     const toggleBookmark = async (questionId: string) => {
         const user = auth.currentUser;
         if (!user) {
+            showToast('বুকমার্ক করতে লগইন করুন।');
             router.push('/login');
             return;
         }
@@ -140,246 +732,337 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
         });
 
         try {
-            const userRef = doc(db, 'users', user.uid);
-            const batch = writeBatch(db);
-            batch.set(userRef, {
+            await setDoc(doc(db, 'users', user.uid), {
                 bookmarks: isBookmarked ? arrayRemove(questionId) : arrayUnion(questionId)
             }, { merge: true });
-            await batch.commit();
         } catch (error) {
             console.error('Error toggling bookmark:', error);
+            setBookmarkedIds(prev => {
+                const next = new Set(prev);
+                if (isBookmarked) next.add(questionId);
+                else next.delete(questionId);
+                return next;
+            });
+            showToast('বুকমার্ক সেভ করা যায়নি।');
         }
     };
 
-    const availableSubjects = Array.from(new Set(allMappings.map(m => m.subject).filter(Boolean)));
-    const availableChapters = Array.from(new Set(allMappings.filter(m => !filters.subject || m.subject === filters.subject).map(m => m.chapter).filter(Boolean)));
-    const availableTopics = Array.from(new Set(allMappings.filter(m => (!filters.subject || m.subject === filters.subject) && (!filters.chapter || m.chapter === filters.chapter)).map(m => m.topic).filter(Boolean)));
-    const availableSources = Array.from(new Set(allMappings.filter(m => (!filters.subject || m.subject === filters.subject) && (!filters.chapter || m.chapter === filters.chapter) && (!filters.topic || m.topic === filters.topic)).map(m => m.source).filter(Boolean)));
+    const handleReportSubmit = async () => {
+        if (!reportingQuestion || !reportReason.trim()) return;
+        const user = auth.currentUser;
+        if (!user) {
+            showToast('রিপোর্ট করতে লগইন করুন।');
+            router.push('/login');
+            return;
+        }
 
-    const varsityList = [
-        'Medical', 'Dental', 'DU', 'JU', 'RU', 'CU', 'Agri. Cluster', 'GST', 'BUET', 'CKRUET'
-    ];
+        setReportSubmitting(true);
+        try {
+            const reportRef = doc(db, 'reported_questions', `${String(reportingQuestion.id)}_${user.uid}`);
+            await setDoc(reportRef, {
+                questionId: String(reportingQuestion.id),
+                question: reportingQuestion.question,
+                options: [reportingQuestion.option_a, reportingQuestion.option_b, reportingQuestion.option_c, reportingQuestion.option_d].filter(Boolean),
+                correct_option: reportingQuestion.correct_option,
+                explanation: reportingQuestion.explanation || '',
+                subject: reportingQuestion.subject || activeFilters.subject || '',
+                chapter: reportingQuestion.chapter || activeFilters.chapter || '',
+                reason: reportReason.trim(),
+                reportedBy: user.uid,
+                reportedByEmail: user.email || '',
+                status: 'pending',
+                createdAt: serverTimestamp()
+            }, { merge: true });
 
-    const yearList = [
-        '23-24', '22-23', '21-22', '20-21', '19-20', '18-19', '17-18', '16-17', '15-16'
-    ];
+            showToast('ধন্যবাদ! আপনার রিপোর্ট জমা হয়েছে।');
+            setReportingQuestion(null);
+            setReportReason('');
+        } catch (err) {
+            console.error("Report submit error:", err);
+            showToast('রিপোর্ট পাঠাতে সমস্যা হয়েছে।');
+        } finally {
+            setReportSubmitting(false);
+        }
+    };
+
+    const availableSubjects = Object.keys(syllabus || {});
+    const availableChapters = filters.subject && syllabus[filters.subject]
+        ? Object.keys(syllabus[filters.subject])
+        : [];
+    const availableTopics = filters.subject && filters.chapter && syllabus[filters.subject]?.[filters.chapter]
+        ? syllabus[filters.subject][filters.chapter].topics || []
+        : [];
+    const availableSources = filters.subject && filters.chapter && syllabus[filters.subject]?.[filters.chapter]
+        ? syllabus[filters.subject][filters.chapter].sources || []
+        : [];
+
+    const varsityList = ['MAT', 'DAT', 'AFMC'];
+    const yearList = ['25-26', '24-25', '23-24', '22-23', '21-22', '20-21', '19-20', '18-19', '17-18', '16-17', '15-16'];
 
     useEffect(() => {
-        let isMounted = true;
-        const loadQuestions = async () => {
-            setLoading(true);
-            const newQuestions = await fetchFilteredQuestions(page, filters);
+        let cancelled = false;
+        const cacheKey = getCacheKey(page, activeFilters);
 
-            if (isMounted) {
-                if (newQuestions.length < 10) setHasMore(false);
-                else setHasMore(true);
-
-                if (page === 1) setQuestions(newQuestions);
-                else setQuestions(prev => [...prev, ...newQuestions]);
-
-                setLoading(false);
-            }
+        const applyPage = (pageData: Question[]) => {
+            setHasMore(pageData.length >= PAGE_SIZE);
+            setQuestions(prev => (page === 1 ? pageData : appendUnique(prev, pageData)));
         };
-        loadQuestions();
-        return () => { isMounted = false; };
-    }, [page, filters]);
 
-    const handleOptionSelect = async (question: Question, key: string) => {
-        if (mode !== 'practice' || selectedAnswers[question.id]) return;
-
-        const qIdStr = String(question.id);
-        setSelectedAnswers(p => ({ ...p, [qIdStr]: key }));
-        setSolvedIds(prev => new Set(prev).add(qIdStr));
-
-        const user = auth.currentUser;
-        if (!user) return;
-
-        const isCorrect = key.toLowerCase() === question.correct_option?.toLowerCase();
-        const activeSubject = question.subject || filters.subject || 'সাধারণ';
-        const activeChapter = (question as any).chapter || filters.chapter || 'সাধারণ অধ্যায়';
-
-        try {
-            const batch = writeBatch(db);
-
-            const userRef = doc(db, 'users', user.uid);
-            batch.set(userRef, {
-                totalAttempted: increment(1),
-                totalCorrect: increment(isCorrect ? 1 : 0),
-                totalScore: increment(isCorrect ? 1 : 0),
-                solved: arrayUnion(qIdStr)
-            }, { merge: true });
-
-            const subjectRef = doc(db, `users/${user.uid}/subject_progress`, activeSubject);
-            batch.set(subjectRef, {
-                totalAttempted: increment(1),
-                correctAnswers: increment(isCorrect ? 1 : 0)
-            }, { merge: true });
-
-            const cleanDocId = `${activeSubject}_${activeChapter}`.replace(/[\/\\]/g, '_');
-            const chapterRef = doc(db, `users/${user.uid}/chapter_progress`, cleanDocId);
-            batch.set(chapterRef, {
-                subject: activeSubject,
-                chapter: activeChapter,
-                totalAttempted: increment(1),
-                correctAnswers: increment(isCorrect ? 1 : 0)
-            }, { merge: true });
-
-            if (!isCorrect) {
-                const optionsMap: Record<string, string> = {
-                    a: question.option_a,
-                    b: question.option_b,
-                    c: question.option_c,
-                    d: question.option_d
-                };
-
-                const mistakeRef = doc(db, `users/${user.uid}/mistakes`, qIdStr);
-                batch.set(mistakeRef, {
-                    question: question.question,
-                    options: [question.option_a, question.option_b, question.option_c, question.option_d].filter(Boolean),
-                    correctAnswer: optionsMap[question.correct_option?.toLowerCase()] || question.correct_option,
-                    userAnswer: optionsMap[key.toLowerCase()] || key,
-                    explanation: question.explanation || '',
-                    subject: activeSubject,
-                    chapter: activeChapter,
-                    timestamp: serverTimestamp()
-                }, { merge: true });
-            }
-
-            await batch.commit();
-        } catch (err) {
-            console.error("Firestore sync error:", err);
+        const cached = readCache(cacheKey, false);
+        if (cached) {
+            applyPage(cached);
+            loadErrorRef.current = false;
+            setLoadError(false);
+            setLoading(false);
+            return () => { cancelled = true; };
         }
-    };
+
+        (async () => {
+            setLoading(true);
+            try {
+                const fresh = await fetchFilteredQuestions(page, activeFilters);
+                if (cancelled) return;
+                writeCache(cacheKey, fresh);
+                loadErrorRef.current = false;
+                setLoadError(false);
+                applyPage(fresh);
+            } catch (err) {
+                console.error("Fetch questions error:", err);
+                if (cancelled) return;
+                const stale = readCache(cacheKey, true);
+                if (stale) {
+                    applyPage(stale);
+                } else {
+                    loadErrorRef.current = true;
+                    setLoadError(true);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [page, activeFilters, reloadTick]);
+
+    const applyFilterState = useCallback((next: Filters) => {
+        clickedQuestionsRef.current.clear();
+        setFilters(next);
+        setPage(1);
+        setQuestions([]);
+        setHasMore(true);
+        loadErrorRef.current = false;
+        setLoadError(false);
+        setActiveFilters({ ...next });
+    }, []);
+
+    const prevInitialSubjectRef = useRef(initialSubject);
+    useEffect(() => {
+        if (prevInitialSubjectRef.current === initialSubject) return;
+        prevInitialSubjectRef.current = initialSubject;
+        applyFilterState({ ...emptyFilters, subject: initialSubject });
+    }, [initialSubject, applyFilterState]);
 
     const handleFilterChange = (filterName: string, value: string) => {
         setFilters(prev => {
             const newFilters = { ...prev, [filterName]: value };
-            if (filterName === 'subject') { newFilters.chapter = ''; newFilters.topic = ''; }
-            else if (filterName === 'chapter') { newFilters.topic = ''; }
+            if (filterName === 'subject') {
+                newFilters.chapter = '';
+                newFilters.topic = '';
+                newFilters.source = '';
+            } else if (filterName === 'chapter') {
+                newFilters.topic = '';
+                newFilters.source = '';
+            }
             return newFilters;
         });
-        setPage(1);
-        setQuestions([]);
-        setHasMore(true);
     };
 
-    const resetAdvancedFilters = () => {
-        setFilters(prev => ({ ...prev, varsity: '', year: '' }));
-        setPage(1);
-        setQuestions([]);
-        setHasMore(true);
+    const handleApplyFilters = () => {
+        if (JSON.stringify(filters) === JSON.stringify(activeFilters)) {
+            if (loadErrorRef.current) {
+                loadErrorRef.current = false;
+                setLoadError(false);
+                setReloadTick(t => t + 1);
+            }
+            return;
+        }
+        applyFilterState(filters);
+    };
+
+    const handleResetAllFilters = () => {
+        applyFilterState({ ...emptyFilters, subject: initialSubject });
+    };
+
+    const handleRetry = () => {
+        loadErrorRef.current = false;
+        setLoadError(false);
+        setReloadTick(t => t + 1);
+    };
+
+    // 🚀 ULTRA-OPTIMISTIC OPTION SELECT HANDLER
+    const handleOptionSelect = (question: Question, key: string) => {
+        if (mode !== 'practice') return;
+        const qIdStr = String(question.id);
+
+        if (clickedQuestionsRef.current.has(qIdStr) || selectedAnswers[qIdStr]) {
+            return;
+        }
+
+        clickedQuestionsRef.current.add(qIdStr);
+        const alreadySolved = solvedIds.has(qIdStr);
+
+        setSelectedAnswers(p => ({ ...p, [qIdStr]: key }));
+        setSolvedIds(prev => new Set(prev).add(qIdStr));
+
+        if (alreadySolved) return;
+
+        const isCorrect = key.toLowerCase() === question.correct_option?.toLowerCase();
+        const entry: AnswerEntry = {
+            qId: qIdStr,
+            answer: key,
+            correct: isCorrect,
+            subject: question.subject || activeFilters.subject || 'সাধারণ',
+            chapter: (question as any).chapter || activeFilters.chapter || 'সাধারণ অধ্যায়'
+        };
+
+        const user = auth.currentUser;
+        if (!user) {
+            if (!authReadyRef.current) {
+                earlyAnswersRef.current.push(entry);
+            } else {
+                showToast('প্রোগ্রেস সেভ করতে দয়া করে লগইন করুন।');
+            }
+            return;
+        }
+
+        const attempted = recordAnswer(user.uid, entry);
+
+        if (attempted >= BATCH_QUESTION_THRESHOLD) {
+            flushPendingSync();
+        }
     };
 
     const observer = useRef<IntersectionObserver | null>(null);
-    const lastQuestionRef = useCallback((node: HTMLDivElement) => {
+    const lastQuestionRef = useCallback((node: HTMLDivElement | null) => {
         if (loading) return;
         if (observer.current) observer.current.disconnect();
 
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
+            if (entries[0].isIntersecting && hasMore && !loadErrorRef.current) {
                 setPage(prev => prev + 1);
             }
         });
         if (node) observer.current.observe(node);
     }, [loading, hasMore]);
 
+    useEffect(() => {
+        return () => observer.current?.disconnect();
+    }, []);
+
+    const hasActiveCustomFilters = activeFilters.chapter || activeFilters.topic || activeFilters.source || activeFilters.varsity || activeFilters.year;
+
     return (
         <div className="min-h-screen bg-slate-100/60 dark:bg-[#0B1120] font-sans text-slate-900 dark:text-slate-50 transition-colors duration-300 pb-20">
-            <nav className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-[#0B1120]/85 backdrop-blur-md">
+            <nav className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-[#0B1120]/85 backdrop-blur-md">
                 <div className="mx-auto max-w-4xl px-3 sm:px-6">
-                    <div className="flex h-14 sm:h-16 items-center justify-between">
-                        <div className="flex items-center gap-2.5 sm:gap-3">
-                            <button onClick={() => router.back()} className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <ArrowLeft size={16} />
+                    <div className="flex h-13 sm:h-16 items-center justify-between">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <button onClick={() => router.back()} className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                <ArrowLeft size={15} />
                             </button>
-                            <span className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                            <span className="text-sm sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
                                 ADQ<span className="text-emerald-600 dark:text-emerald-400">Live</span> QBank
                             </span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button onClick={toggleTheme} className="p-2 sm:p-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                            <button onClick={toggleTheme} className="p-1.5 sm:p-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
                             </button>
                         </div>
                     </div>
                 </div>
             </nav>
 
-            <main className="max-w-4xl mx-auto px-3 sm:px-6 pt-4 sm:pt-6">
-                <div className="flex items-center justify-between gap-2 mb-4">
-                    <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">MCQ Question Bank</h1>
+            <main className="max-w-4xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-6">
+                <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4 px-0.5">
+                    <div>
+                        <h1 className="text-sm sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                            MCQ Question Bank
+                        </h1>
+                        <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate max-w-[160px] sm:max-w-md">
+                            {activeFilters.subject || 'সকল বিষয়'} {activeFilters.chapter ? `• ${activeFilters.chapter}` : ''}
+                        </p>
+                    </div>
 
-                    <div className="flex bg-slate-200/80 dark:bg-slate-800/90 p-1 rounded-xl shadow-xs border border-slate-300/40 dark:border-slate-700/60">
+                    <div className="flex bg-slate-200/80 dark:bg-slate-800/90 p-0.5 sm:p-1 rounded-xl shadow-xs border border-slate-300/40 dark:border-slate-700/60">
                         <button
                             onClick={() => setMode('practice')}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${mode === 'practice' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
+                            className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg font-bold text-[11px] sm:text-sm transition-all cursor-pointer ${mode === 'practice' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
                         >
                             Practice
                         </button>
                         <button
                             onClick={() => setMode('solve')}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${mode === 'solve' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
+                            className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg font-bold text-[11px] sm:text-sm transition-all cursor-pointer ${mode === 'solve' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
                         >
                             Solve
                         </button>
                     </div>
                 </div>
 
-                {/* Filters Box */}
-                <div className="mb-5 bg-white dark:bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div className="mb-3.5 sm:mb-5 bg-white dark:bg-[#0c1322] p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3">
                         <CustomDropdown options={availableSubjects} value={filters.subject} onChange={(val: string) => handleFilterChange('subject', val)} placeholder="সব বিষয়" />
                         <CustomDropdown options={availableChapters} value={filters.chapter} onChange={(val: string) => handleFilterChange('chapter', val)} placeholder="সব অধ্যায়" />
                         <CustomDropdown options={availableTopics} value={filters.topic} onChange={(val: string) => handleFilterChange('topic', val)} placeholder="সব টপিক" />
                         <CustomDropdown options={availableSources} value={filters.source} onChange={(val: string) => handleFilterChange('source', val)} placeholder="সব উৎস" />
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                        <button
-                            onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-80 flex items-center gap-1.5 cursor-pointer select-none"
-                        >
-                            <SlidersHorizontal size={13} />
-                            <span>{showAdvanced ? 'অ্যাডভান্সড ফিল্টার বন্ধ করুন' : 'অ্যাডভান্সড ফিল্টার (ভার্সিটি ও সাল)'}</span>
-                            {(filters.varsity || filters.year) && (
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                            )}
-                        </button>
-
-                        {(filters.varsity || filters.year) && (
-                            <button
-                                onClick={resetAdvancedFilters}
-                                className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer"
-                            >
-                                <RotateCcw size={12} />
-                                রিসেট করুন
-                            </button>
-                        )}
-                    </div>
-
                     {showAdvanced && (
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3 pt-1">
-                            <CustomDropdown 
-                                options={varsityList} 
-                                value={filters.varsity} 
-                                onChange={(val: string) => handleFilterChange('varsity', val)} 
-                                placeholder="সকল ভার্সিটি / মেডিকেল" 
-                            />
-                            <CustomDropdown 
-                                options={yearList} 
-                                value={filters.year} 
-                                onChange={(val: string) => handleFilterChange('year', val)} 
-                                placeholder="সকল শিক্ষাবর্ষ (সাল)" 
-                            />
+                        <div className="grid grid-cols-2 gap-1.5 sm:gap-3 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                            <CustomDropdown options={varsityList} value={filters.varsity} onChange={(val: string) => handleFilterChange('varsity', val)} placeholder="সব ভার্সিটি" />
+                            <CustomDropdown options={yearList} value={filters.year} onChange={(val: string) => handleFilterChange('year', val)} placeholder="সকল শিক্ষাবর্ষ (সাল)" />
                         </div>
                     )}
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowAdvanced(!showAdvanced)}
+                                className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-80 flex items-center gap-1 cursor-pointer select-none"
+                            >
+                                <SlidersHorizontal size={12} />
+                                <span>{showAdvanced ? 'অ্যাডভান্সড বন্ধ' : 'অ্যাডভান্সড ফিল্টার'}</span>
+                                {(filters.varsity || filters.year) && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                )}
+                            </button>
+
+                            {hasActiveCustomFilters && (
+                                <button
+                                    onClick={handleResetAllFilters}
+                                    className="text-[10px] sm:text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer"
+                                >
+                                    <RotateCcw size={11} />
+                                    <span>রিসেট</span>
+                                </button>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={handleApplyFilters}
+                            className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-[11px] sm:text-xs md:text-sm font-bold shadow-xs transition-all cursor-pointer"
+                        >
+                            <Search size={12} className="shrink-0" />
+                            <span>ফিল্টার করুন</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Questions List */}
-                <div className="space-y-4 sm:space-y-5">
-                    {questions.length === 0 && !loading ? (
-                        <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
+                <div className="space-y-3 sm:space-y-4">
+                    {questions.length === 0 && !loading && !loadError ? (
+                        <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
                             কোনো প্রশ্ন পাওয়া যায়নি। ফিল্টার পরিবর্তন করে দেখুন।
                         </div>
                     ) : (
@@ -397,52 +1080,72 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
                                 <div
                                     key={q.id}
                                     ref={isLastElement ? lastQuestionRef : null}
-                                    className={`p-4 sm:p-6 rounded-2xl border transition-all ${
-                                        isSolved 
-                                            ? 'bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-200/60 dark:border-emerald-900/30 shadow-xs' 
-                                            : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700'
-                                    }`}
+                                    className={`p-4 sm:p-5 rounded-3xl border transition-all ${isSolved
+                                        ? 'bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-200/60 dark:border-emerald-900/30 shadow-xs'
+                                        : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700'
+                                        }`}
                                 >
-                                    <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-black tracking-tight border border-emerald-200/60 dark:border-emerald-800/50">
-                                                প্রশ্ন #{index + 1}
+                                    {/* Top Header: choto screen e Q number → tag → tick → actions (ek line), tarpor niche pura width e question */}
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 mb-3.5 sm:flex-nowrap sm:items-start sm:justify-between sm:gap-3">
+                                        {/* choto screen e contents (children outer flex er item), boro screen e agerr moto wrapper */}
+                                        <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2.5 sm:min-w-0 sm:flex-1">
+                                            {/* Number */}
+                                            <span className="order-1 inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-black shrink-0 border border-emerald-200/60 dark:border-emerald-800/50">
+                                                {index + 1}
                                             </span>
 
-                                            {/* ⭐️ Solved Badge */}
-                                            {isSolved && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold border border-emerald-300/60 dark:border-emerald-800/50">
-                                                    <Check size={12} strokeWidth={2.5} /> solved
-                                                </span>
-                                            )}
-
+                                            {/* Tag */}
                                             {questionSuffix && (
-                                                <span className="text-[11px] font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 px-2 py-0.5 rounded-md">
+                                                <span className="order-2 sm:order-3 inline-flex items-center text-[10px] sm:text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 px-2 py-0.5 rounded-lg shrink-0">
                                                     {questionSuffix}
                                                 </span>
                                             )}
+
+                                            {/* Tick */}
+                                            {isSolved && (
+                                                <Check
+                                                    size={16}
+                                                    strokeWidth={2}
+                                                    className="order-3 sm:order-4 text-emerald-500 dark:text-emerald-400 shrink-0 self-center"
+                                                />
+                                            )}
+
+                                            {/* Question Text: choto screen e pura width (w-full), boro screen e agerr moto */}
+                                            <h3 className="order-5 sm:order-2 w-full sm:w-auto text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                                                <RenderTextOrMath text={q.question} />
+                                            </h3>
                                         </div>
 
-                                        <button
-                                            onClick={() => toggleBookmark(qIdStr)}
-                                            className={`p-1.5 rounded-lg transition-colors ${isBookmarked ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                                            title={isBookmarked ? 'বুকমার্ক সরান' : 'বুকমার্ক করুন'}
-                                        >
-                                            <Bookmark size={17} fill={isBookmarked ? 'currentColor' : 'none'} />
-                                        </button>
+                                        {/* Actions: Report & Bookmark (choto screen e prothom line er dan pashe) */}
+                                        <div className="order-4 ml-auto sm:order-none sm:ml-0 flex items-center gap-1 shrink-0 sm:pt-0.5">
+                                            <button
+                                                onClick={() => setReportingQuestion(q)}
+                                                className="p-1.5 rounded-xl text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                                title="প্রশ্নটি রিপোর্ট করুন"
+                                            >
+                                                <Flag size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => toggleBookmark(qIdStr)}
+                                                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${isBookmarked
+                                                    ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40'
+                                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                    }`}
+                                                title={isBookmarked ? 'বুকমার্ক সরান' : 'বুকমার্ক করুন'}
+                                            >
+                                                <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div className="text-[15px] sm:text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug sm:leading-relaxed mb-4">
-                                        <RenderTextOrMath text={q.question} />
-                                    </div>
-
+                                    {/* Options Grid */}
                                     <div className="space-y-2 sm:space-y-2.5">
                                         {Object.entries(options).map(([key, value], optIndex) => {
                                             const optionLabel = ['A', 'B', 'C', 'D'][optIndex];
                                             const isCorrect = key.toLowerCase() === q.correct_option?.toLowerCase();
                                             const isUserSelected = key.toLowerCase() === selectedOption?.toLowerCase();
 
-                                            let cardStyle = "border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 hover:border-slate-300";
+                                            let cardStyle = "border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/70";
                                             let badgeStyle = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700";
 
                                             if (mode === 'solve' || isAnswered) {
@@ -458,10 +1161,18 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
                                             return (
                                                 <div
                                                     key={key}
+                                                    role="button"
+                                                    tabIndex={0}
                                                     onClick={() => handleOptionSelect(q, key)}
-                                                    className={`p-2.5 sm:p-3.5 border rounded-xl cursor-pointer flex items-center gap-2.5 sm:gap-3.5 transition-all active:scale-[0.99] ${cardStyle}`}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            handleOptionSelect(q, key);
+                                                        }
+                                                    }}
+                                                    className={`p-2.5 sm:p-3.5 border rounded-2xl cursor-pointer flex items-center gap-2.5 sm:gap-3.5 transition-all active:scale-[0.99] ${cardStyle}`}
                                                 >
-                                                    <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-xs sm:text-sm font-extrabold flex items-center justify-center shrink-0 shadow-xs transition-colors ${badgeStyle}`}>
+                                                    <span className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center shrink-0 shadow-xs transition-colors ${badgeStyle}`}>
                                                         {optionLabel}
                                                     </span>
 
@@ -470,23 +1181,24 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
                                                     </span>
 
                                                     {(mode === 'solve' || isAnswered) && isCorrect && (
-                                                        <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0 ml-auto" />
+                                                        <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 ml-auto" />
                                                     )}
                                                     {isAnswered && isUserSelected && !isCorrect && (
-                                                        <XCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0 ml-auto" />
+                                                        <XCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 ml-auto" />
                                                     )}
                                                 </div>
                                             );
                                         })}
                                     </div>
 
-                                    {(mode === 'solve' || isAnswered) && (
-                                        <div className="mt-3.5 sm:mt-4 p-3 sm:p-4 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 rounded-xl">
+                                    {/* Explanation */}
+                                    {(mode === 'solve' || isAnswered) && q.explanation && q.explanation.trim() !== '' && (
+                                        <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 rounded-2xl">
                                             <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                                                <Lightbulb size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                                                <Lightbulb size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                                                 <div>
-                                                    <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">ব্যাখ্যা:</span>
-                                                    <RenderTextOrMath text={q.explanation || 'কোনো ব্যাখ্যা দেওয়া নেই।'} />
+                                                    <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1">ব্যাখ্যা:</span>
+                                                    <RenderTextOrMath text={q.explanation} />
                                                 </div>
                                             </div>
                                         </div>
@@ -497,12 +1209,104 @@ export default function QBankClient({ allMappings = [] }: { allMappings?: any[] 
                     )}
 
                     {loading && (
-                        <div className="flex justify-center items-center py-6">
-                            <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400" size={28} />
+                        <div className="flex justify-center items-center py-5">
+                            <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400" size={24} />
+                        </div>
+                    )}
+
+                    {loadError && !loading && (
+                        <div className="bg-white dark:bg-slate-900 p-5 text-center rounded-2xl border border-rose-200 dark:border-rose-900/40 text-slate-600 dark:text-slate-300 text-xs sm:text-sm space-y-2.5">
+                            <p>প্রশ্ন লোড করা যায়নি। ইন্টারনেট কানেকশন চেক করুন।</p>
+                            <button
+                                type="button"
+                                onClick={handleRetry}
+                                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer"
+                            >
+                                আবার চেষ্টা করুন
+                            </button>
                         </div>
                     )}
                 </div>
             </main>
+
+            {toast && (
+                <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs sm:text-sm font-semibold shadow-2xl max-w-[90vw] text-center">
+                    {toast}
+                </div>
+            )}
+
+            {reportingQuestion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-black/70 backdrop-blur-xs">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center gap-2 text-amber-500 font-bold text-sm sm:text-base">
+                            <AlertCircle size={18} />
+                            <span>প্রশ্নে কোনো ভুল পেয়েছেন?</span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                            দ্রুত সিলেক্ট করতে নিচের পয়েন্টগুলোতে ক্লিক করুন অথবা বিস্তারিত লিখুন:
+                        </p>
+
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                            {quickReportOptions.map((tag) => {
+                                const isSelected = reportReason.includes(tag);
+                                return (
+                                    <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() => handleQuickTagClick(tag)}
+                                        className={`px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all cursor-pointer border ${isSelected
+                                            ? 'bg-amber-500/20 text-amber-500 border-amber-500/50 dark:bg-amber-500/25 dark:text-amber-400'
+                                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/60'
+                                            }`}
+                                    >
+                                        + {tag}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <textarea
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value)}
+                            placeholder="যেমন: সঠিক উত্তর C হবে, কিন্তু B দেওয়া আছে..."
+                            className="w-full h-20 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                        />
+
+                        <div className="flex items-center justify-end gap-2 pt-0.5">
+                            <button
+                                type="button"
+                                onClick={() => { setReportingQuestion(null); setReportReason(''); }}
+                                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            >
+                                বাতিল
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleReportSubmit}
+                                disabled={reportSubmitting || !reportReason.trim()}
+                                className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer"
+                            >
+                                {reportSubmitting ? 'জমা হচ্ছে...' : 'রিপোর্ট পাঠান'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+export default function QBankClient() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center bg-slate-100/60 dark:bg-[#0B1120]">
+                    <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400" size={28} />
+                </div>
+            }
+        >
+            <QBankInner />
+        </Suspense>
     );
 }

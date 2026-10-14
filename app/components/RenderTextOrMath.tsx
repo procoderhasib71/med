@@ -1,59 +1,139 @@
 'use client';
-import { InlineMath } from 'react-katex';
+
+import React from 'react';
+import { InlineMath, BlockMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 
 export default function RenderTextOrMath({ text }: { text: string }) {
     if (!text) return null;
 
-    const formatChemicalText = (str: string) => {
-        if (!str) return '';
+    // ১. ডাবল "ব্যাখ্যা: ব্যাখ্যাঃ" ক্লিন করা
+    let cleanStr = text.replace(/^(ব্যাখ্যা[ঃ:]\s*)+/gi, 'ব্যাখ্যাঃ ');
 
-        let formatted = str;
+    // ২. ব্রোকেন OCR ক্যারেক্টার ও ভুল কোড ফিক্স
+    cleanStr = cleanStr.replace(/[\u09F1ৱ]/g, '১');
 
-        // 1. ডাটাবেজে থাকা আন্ডারস্কোর সাবস্ক্রিপ্ট ফরম্যাট (যেমন: H_2S, H_2SO_4, CH_3CSNH_2)
-        // এটি কেবল আন্ডারস্কোরের ঠিক পরের সংখ্যাকে সাবস্ক্রিপ্ট করবে (ক্যাপিটাল লেটার বাদ দিয়ে)
-        formatted = formatted.replace(/_([0-9]+)/g, '<sub>$1</sub>');
-        formatted = formatted.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>');
+    // ৩. এস্কেপ ক্যারেক্টার ও টাইপো ফিক্স (\frac, \vec, \beta, \bar, \because)
+    cleanStr = cleanStr
+        .replace(/\x0c/g, '\\f')
+        .replace(/[↑\u2191]rac/g, '\\frac')
+        .replace(/\\x0crac/g, '\\frac')
+        // \because ও Backspace (\x08 / \b) ফিক্স
+        .replace(/\x08ecause/g, '\\because ')
+        .replace(/[\u0008]ecause/g, '\\because ')
+        // ভেক্টর, গ্রিক প্রতীক ও বার ফিক্স
+        .replace(/\x0bec/g, '\\vec')
+        .replace(/\x0b/g, '\\vec ')
+        .replace(/\x08eta/g, '\\beta')
+        .replace(/\x08ar/g, '\\bar');
 
-        // 2. সাধারণ কেমিক্যাল সংকেতের সংখ্যা সাবস্ক্রিপ্ট (যেমন: H2, SO4, CH3, H2O, (NH4)2)
-        // ক্যাপিটাল এলিমেন্ট সিম্বল (H, Fe, Na, O, C) বা ক্লোজিং ব্র্যাকেটের পরের ডিজিট সাবস্ক্রিপ্ট হবে
-        formatted = formatted.replace(/([A-Z][a-z]?|\))([0-9]+)/g, '$1<sub>$2</sub>');
+    // ৪. KaTeX Math মোডের ভেতরের বাংলা সংখ্যা ইংরেজিতে কনভার্ট করা
+    cleanStr = cleanStr.replace(/(\$\$[\s\S]*?\$\$|\$[^\$]+?\$)/g, (match) => {
+        return match
+            .replace(/০/g, '0')
+            .replace(/১/g, '1')
+            .replace(/২/g, '2')
+            .replace(/৩/g, '3')
+            .replace(/৪/g, '4')
+            .replace(/৫/g, '5')
+            .replace(/৬/g, '6')
+            .replace(/৭/g, '7')
+            .replace(/৮/g, '8')
+            .replace(/৯/g, '9');
+    });
 
-        // 3. আয়নের চার্জ (Superscript, যেমন: Fe2+, SO4^2-, H+)
-        formatted = formatted.replace(/\^([0-9]*[\+\-])/g, '<sup>$1</sup>');
-
-        return formatted;
-    };
-
-    const hasMath = text.includes('\\') || text.includes('^');
-
-    if (!hasMath) {
-        const formattedHtml = formatChemicalText(text);
-        return <span dangerouslySetInnerHTML={{ __html: formattedHtml }} />;
+    // ➕ মিসিং ডলার ($) ও আন-এনক্লোজড ল্যাটেক্স অটো-ফিক্স
+    const hasLatexCommands = /\\(frac|text|times|cong|pm|sqrt|sum|alpha|beta|theta|vec|bar|because)/.test(cleanStr);
+    if (hasLatexCommands) {
+        const dollarCount = (cleanStr.match(/\$/g) || []).length;
+        if (dollarCount % 2 !== 0) {
+            cleanStr = `${cleanStr}$`;
+        }
     }
 
-    // Capture complete LaTeX commands with arguments like \frac{a}{b}, \sqrt{x}, \vec{v}, etc. or exponents like ^2 or ^{10}
-    const parts = text.split(/(\\[a-zA-Z]+(?:\{[^{}]*\}|\[[^\[\]]*\])*(?:_[0-9a-zA-Z]+|_{[^{}]*})?(?:\^[0-9a-zA-Z]+|\^{[^{}]*})?|\^{.*?}|\^[0-9a-zA-Z]+)/g);
+    // ৫. রসায়নের সংকেত ফরম্যাট
+    const formatChemicalText = (str: string) => {
+        if (!str) return '';
+        return str
+            .replace(/([A-Z][a-z]?|\))([0-9]+)/g, '$1<sub>$2</sub>')
+            .replace(/\^([0-9]*[\+\-])/g, '<sup>$1</sup>');
+    };
+
+    // ৬. টেক্সট ও ম্যাথ টোকেনাইজার রেজেক্স
+    const regex = /(\$\$[\s\S]*?\$\$|\$[^\$]+?\$|\\frac\s*\{.*?\}(?:\s*\{.*?\})?|(?:\\[a-zA-Z]+(?:\{[^{}]*\}\vert{}\[[^\[\]]*\])*(?:_[0-9a-zA-Z]+|_{[^{}]*})?(?:\^[0-9a-zA-Z]+|\^{[^{}]*})?)+)/g;
+    const parts = cleanStr.split(regex);
 
     return (
-        <span className="leading-relaxed">
+        <div className="text-[15px] sm:text-base leading-relaxed whitespace-pre-line text-left font-normal text-slate-700 dark:text-slate-300 tracking-normal antialiased">
             {parts.map((part, index) => {
                 if (!part) return null;
 
-                if (part.startsWith('\\') || part.startsWith('^')) {
-                    const katexMath = part.startsWith('^') ? `{}${part}` : part;
+                // 📐 Block Math ($$...$$)
+                if (part.startsWith('$$') && part.endsWith('$$') && part.length >= 4) {
+                    const math = part.slice(2, -2).trim();
                     return (
-                        <span key={index} className="inline-block mx-0.5">
-                            <InlineMath math={katexMath} renderError={() => <span>{part}</span>} />
+                        <div
+                            key={index}
+                            className="my-2 text-left overflow-x-auto overflow-y-hidden no-scrollbar text-[1.05em] [&_.katex-display]:!my-0.5 [&_.katex-display]:!text-left [&_.katex-display>.katex]:!text-left"
+                        >
+                            <BlockMath
+                                math={math}
+                                renderError={() => <span className="text-red-500 font-mono text-xs">{part}</span>}
+                                settings={{ strict: false, trust: true }}
+                            />
+                        </div>
+                    );
+                }
+
+                // 📐 Inline Math ($...$)
+                if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
+                    const math = part.slice(1, -1).trim();
+                    const mathWithDisplayStyle = math.includes('\\frac') && !math.startsWith('\\displaystyle')
+                        ? `\\displaystyle ${math}`
+                        : math;
+
+                    return (
+                        <span
+                            key={index}
+                            className="inline-block mx-1 align-middle text-[1em] overflow-x-auto overflow-y-hidden no-scrollbar max-w-full [&_.katex]:!text-[1em]"
+                        >
+                            <InlineMath
+                                math={mathWithDisplayStyle}
+                                renderError={() => <span>{part}</span>}
+                                settings={{ strict: false, trust: true }}
+                            />
                         </span>
                     );
                 }
 
-                const formattedPart = formatChemicalText(part);
+                // 📐 Raw LaTeX
+                if (part.startsWith('\\')) {
+                    const rawWithDisplay = part.includes('\\frac') && !part.startsWith('\\displaystyle')
+                        ? `\\displaystyle ${part}`
+                        : part;
+
+                    return (
+                        <span
+                            key={index}
+                            className="inline-block mx-1 align-middle text-[1em] overflow-x-auto overflow-y-hidden no-scrollbar max-w-full [&_.katex]:!text-[1em]"
+                        >
+                            <InlineMath
+                                math={rawWithDisplay}
+                                renderError={() => <span>{part}</span>}
+                                settings={{ strict: false, trust: true }}
+                            />
+                        </span>
+                    );
+                }
+
+                // 📝 সাধারণ টেক্সট (বাংলা ও ইংরেজি)
                 return (
-                    <span key={index} dangerouslySetInnerHTML={{ __html: formattedPart }} />
+                    <span
+                        key={index}
+                        dangerouslySetInnerHTML={{ __html: formatChemicalText(part) }}
+                    />
                 );
             })}
-        </span>
+        </div>
     );
 }
