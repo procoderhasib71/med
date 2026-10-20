@@ -45,15 +45,30 @@ export default function MistakesPage() {
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // 🔄 হোম পোর্টাল ব্যাজ ক্যাশ আপডেট করার ফাংশন
+  const syncPortalCache = (count: number) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cached = localStorage.getItem('user_portal_stats');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        parsed.mistakeCount = count;
+        localStorage.setItem('user_portal_stats', JSON.stringify(parsed));
+      }
+    } catch { }
+  };
+
   useEffect(() => {
-    // ১. লোকাল ক্যাশ থেকে আগে ইনস্ট্যান্ট লোড (০ রিড)
+    // লোকাল ক্যাশ থেকে তখনই লোড করবে যদি তাতে আসল ডেটা থাকে (ফাঁকা অ্যারে থাকলে লোডিং বন্ধ করবে না)
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('user_mistakes_cache');
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          setAllMistakes(parsed);
-          setLoading(false);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllMistakes(parsed);
+            setLoading(false);
+          }
         } catch {
           localStorage.removeItem('user_mistakes_cache');
         }
@@ -75,22 +90,42 @@ export default function MistakesPage() {
   const fetchMistakes = async (uid: string) => {
     try {
       const mistakeDocRef = doc(db, 'users', uid, 'stats', 'mistakes');
-
-      // 🔥 FIRESTORE READ LOG
       console.log(`🔥 [FIRESTORE READ: 1 Doc] | Path: users/${uid}/stats/mistakes (Fetching Mistakes)`);
       const snap = await getDoc(mistakeDocRef);
 
       if (!snap.exists()) {
         setAllMistakes([]);
+        syncPortalCache(0);
         if (typeof window !== 'undefined') localStorage.removeItem('user_mistakes_cache');
         return;
       }
 
       const data = snap.data();
-      const itemsMap: Record<string, { id: string; userAnswer?: string; timestamp?: number }> =
-        data.items || data;
+      const mistakeEntries: { id: string; userAnswer?: string; timestamp?: number }[] = [];
+      const userAnswersMap: Record<string, { userAnswer?: string; timestamp?: number }> = {};
 
-      const mistakeEntries = Object.values(itemsMap).filter((item: any) => item && item.id);
+      // ১. items ম্যাপ থেকে ডেটা রিড
+      if (data.items && typeof data.items === 'object') {
+        Object.entries(data.items).forEach(([key, val]: any) => {
+          if (val && typeof val === 'object') {
+            const mId = String(val.id || key);
+            mistakeEntries.push({ id: mId, userAnswer: val.userAnswer, timestamp: val.timestamp });
+            userAnswersMap[mId] = val;
+          }
+        });
+      }
+
+      // ২. সরাসরি রুট লেভেলে ডেটা থাকলে তাও নেওয়া
+      Object.entries(data).forEach(([key, val]: any) => {
+        if (key !== 'items' && val && typeof val === 'object' && !userAnswersMap[key] && (val.id || val.userAnswer)) {
+          const mId = String(val.id || key);
+          mistakeEntries.push({ id: mId, userAnswer: val.userAnswer, timestamp: val.timestamp });
+          userAnswersMap[mId] = val;
+        }
+      });
+
+      // হোম পোর্টাল ব্যাজ সংখ্যা আপডেট
+      syncPortalCache(mistakeEntries.length);
 
       if (mistakeEntries.length === 0) {
         setAllMistakes([]);
@@ -100,7 +135,6 @@ export default function MistakesPage() {
 
       // লেটেস্ট ভুল প্রশ্ন আগে দেখানোর জন্য সর্ট
       mistakeEntries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
       const ids = mistakeEntries.map(m => String(m.id));
 
       // মূল প্রশ্নগুলো Turso থেকে আনা
@@ -108,7 +142,7 @@ export default function MistakesPage() {
 
       // মার্জ করা (tag ও source সহ)
       const fullMistakes: MistakeItem[] = fetchedQuestions.map((q) => {
-        const entry = itemsMap[String(q.id)] || itemsMap[q.id];
+        const entry = userAnswersMap[String(q.id)] || userAnswersMap[q.id];
         return {
           id: String(q.id),
           question: q.question,
@@ -124,7 +158,6 @@ export default function MistakesPage() {
       });
 
       setAllMistakes(fullMistakes);
-
       if (typeof window !== 'undefined') {
         localStorage.setItem('user_mistakes_cache', JSON.stringify(fullMistakes));
       }
@@ -138,9 +171,11 @@ export default function MistakesPage() {
   const handleRemoveMistake = async (id: string) => {
     if (!currentUser) return;
 
-    // UI এবং ক্যাশ থেকে বাদ দেওয়া
+    // UI এবং ক্যাশ থেকে তাৎক্ষণিক বাদ দেওয়া
     const updated = allMistakes.filter((m) => m.id !== id);
     setAllMistakes(updated);
+    syncPortalCache(updated.length);
+
     if (typeof window !== 'undefined') {
       localStorage.setItem('user_mistakes_cache', JSON.stringify(updated));
     }
@@ -149,12 +184,12 @@ export default function MistakesPage() {
       const mistakeDocRef = doc(db, 'users', currentUser.uid, 'stats', 'mistakes');
       const startTime = Date.now();
 
+      // items ম্যাপ এবং রুট দুই জায়গা থেকেই মুছে দেওয়া
       await updateDoc(mistakeDocRef, {
         [`items.${id}`]: deleteField(),
         [id]: deleteField()
       });
 
-      // ✍️ FIRESTORE WRITE LOG
       console.log(`✍️ [FIRESTORE WRITE: 1 Doc] | Removed Mistake: ${id} (${Date.now() - startTime}ms)`);
     } catch (err) {
       console.error("ডিলিট করতে সমস্যা হয়েছে:", err);
@@ -162,7 +197,6 @@ export default function MistakesPage() {
   };
 
   const subjects = ['all', ...Array.from(new Set(allMistakes.map(m => m.subject).filter(Boolean)))];
-
   const filteredMistakes = activeTab === 'all'
     ? allMistakes
     : allMistakes.filter(m => m.subject === activeTab);
@@ -181,7 +215,6 @@ export default function MistakesPage() {
   const lastElementRef = useCallback((node: HTMLDivElement | null) => {
     if (loading || loadingMore) return;
     if (observer.current) observer.current.disconnect();
-
     observer.current = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && hasMore) {
         setLoadingMore(true);
@@ -191,13 +224,11 @@ export default function MistakesPage() {
         }, 200);
       }
     });
-
     if (node) observer.current.observe(node);
   }, [loading, loadingMore, hasMore]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans transition-colors pb-16">
-
       {/* Top Bar */}
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -217,7 +248,6 @@ export default function MistakesPage() {
               </span>
             </div>
           </div>
-
           <Link
             href="/qbank"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all border border-emerald-200/60 dark:border-emerald-800/60"
@@ -229,7 +259,6 @@ export default function MistakesPage() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 pt-6">
-
         {/* Subject Filter Pills */}
         {subjects.length > 2 && (
           <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none mb-4">
@@ -274,7 +303,6 @@ export default function MistakesPage() {
             {paginatedMistakes.map((item, index) => {
               const isLast = paginatedMistakes.length === index + 1;
               const questionTag = item.tag && item.tag.trim() !== '' ? item.tag : item.source;
-
               return (
                 <div
                   key={item.id}
@@ -287,13 +315,11 @@ export default function MistakesPage() {
                       <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-black flex items-center justify-center">
                         {index + 1}
                       </span>
-
                       {item.subject && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200/50 dark:border-emerald-800/40">
                           {item.subject}
                         </span>
                       )}
-
                       {/* 🏷️ Turso Tag ব্যাজ */}
                       {questionTag && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-extrabold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
@@ -301,7 +327,6 @@ export default function MistakesPage() {
                         </span>
                       )}
                     </div>
-
                     <button
                       onClick={() => handleRemoveMistake(item.id)}
                       title="ঠিক করেছি / তালিকা থেকে সরান"
@@ -310,12 +335,10 @@ export default function MistakesPage() {
                       <Trash2 size={16} />
                     </button>
                   </div>
-
                   {/* প্রশ্ন */}
                   <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug mb-4">
                     <RenderTextOrMath text={item.question} />
                   </h2>
-
                   {/* অপশন গ্রিড (২ কলাম) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-4">
                     {item.options?.map((opt, optIdx) => {
@@ -323,10 +346,8 @@ export default function MistakesPage() {
                       const optionKey = ['a', 'b', 'c', 'd'][optIdx];
                       const isCorrect = optionKey === item.correctAnswer?.toLowerCase() || opt === item.correctAnswer;
                       const isUserPick = optionKey === item.userAnswer?.toLowerCase() || opt === item.userAnswer;
-
                       let cardBg = "bg-slate-50/60 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200";
                       let badgeStyle = "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700";
-
                       if (isCorrect) {
                         cardBg = "bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-emerald-100 font-bold shadow-xs";
                         badgeStyle = "bg-emerald-600 text-white border-emerald-600";
@@ -334,7 +355,6 @@ export default function MistakesPage() {
                         cardBg = "bg-rose-500/10 border-rose-500 text-rose-950 dark:text-rose-100 font-bold shadow-xs";
                         badgeStyle = "bg-rose-600 text-white border-rose-600";
                       }
-
                       return (
                         <div
                           key={optIdx}
@@ -348,7 +368,6 @@ export default function MistakesPage() {
                               <RenderTextOrMath text={opt} />
                             </span>
                           </div>
-
                           {isCorrect && (
                             <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 ml-2" />
                           )}
@@ -359,7 +378,6 @@ export default function MistakesPage() {
                       );
                     })}
                   </div>
-
                   {/* ব্যাখ্যা (Explanation) */}
                   {item.explanation && item.explanation.trim() !== '' && (
                     <div className="mt-2.5 sm:mt-3 p-3 sm:p-4 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 rounded-2xl">
@@ -375,7 +393,6 @@ export default function MistakesPage() {
                 </div>
               );
             })}
-
             {/* পেজিনেশন লোডার */}
             {loadingMore && (
               <div className="flex justify-center items-center py-6">
