@@ -78,3 +78,6 @@ export async function getModelTest(id: string): Promise<Record<string, any> | nu
 
 export const saveModelTest = (id: string, test: Record<string, unknown>) =>
     getJSON('/api/admin/model-tests', { method: 'POST', body: JSON.stringify({ id, test }) });
+
+export const setMyName = (name: string) =>
+    getJSON('/api/me', { method: 'PATCH', body: JSON.stringify({ name }) });

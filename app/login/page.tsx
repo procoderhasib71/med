@@ -1,15 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider 
+import {
+  ConfirmationResult,
+  GoogleAuthProvider,
+  RecaptchaVerifier,
+  getRedirectResult,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  signInWithRedirect,
+  updateProfile,
 } from 'firebase/auth';
-import { getMe } from '@/lib/siteApi';
+import { getMe, setMyName } from '@/lib/siteApi';
 import { auth } from '@/lib/firebase';
-import { Loader2, Mail, Lock, Stethoscope, ArrowRight, Sun, Moon, Home } from 'lucide-react';
+import { Loader2, Phone, KeyRound, User, Stethoscope, ArrowRight, Sun, Moon, Home } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 
@@ -18,14 +23,28 @@ export default function LoginPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [step, setStep] = useState<'phone' | 'code' | 'name'>('phone');
+  const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ হয়
+    getRedirectResult(auth).then((r) => { if (r) finishLogin(); }).catch((err) => setError(authError(err)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -37,16 +56,90 @@ export default function LoginPage() {
     document.cookie = `auth-token=true; path=/; max-age=2592000; SameSite=Lax; ${domainStr}`;
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ব্যবহারকারীকে বোঝার মতো কারণ, শেষে Firebase এর কোড (সমস্যা খুঁজতে কাজে লাগে)
+  const authError = (err: any) => {
+    const c = String(err?.code || '');
+    const msg: Record<string, string> = {
+      'auth/invalid-phone-number': 'ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন।',
+      'auth/invalid-verification-code': 'কোডটা ভুল হয়েছে। আবার দেখে লিখুন।',
+      'auth/code-expired': 'কোডের মেয়াদ শেষ। নতুন কোড নিন।',
+      'auth/too-many-requests': 'অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+      'auth/quota-exceeded': 'আজকের SMS এর সীমা শেষ। পরে চেষ্টা করুন বা Google দিয়ে লগইন করুন।',
+      'auth/operation-not-allowed': 'এই লগইন পদ্ধতি এখনো চালু হয়নি।',
+      'auth/popup-closed-by-user': 'Google এর জানালাটা বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।',
+      'auth/unauthorized-domain': 'এই ঠিকানা থেকে লগইন অনুমোদিত নয়।',
+      'auth/network-request-failed': 'ইন্টারনেট সংযোগে সমস্যা। আবার চেষ্টা করুন।',
+      'auth/captcha-check-failed': 'যাচাই ব্যর্থ হয়েছে। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।',
+    };
+    console.error('Login error:', err);
+    return `${msg[c] || 'লগইন করা যায়নি। আবার চেষ্টা করুন।'}${c ? ` (${c})` : ''}`;
+  };
+
+  const finishLogin = async () => {
+    // প্রথমবার এলে সার্ভার নিজেই Turso তে প্রোফাইল বানায়; নাম না থাকলে জিজ্ঞেস করি
+    const me = await getMe().catch(() => null);
+    setAuthCookie();
+    if (me && !me.name.trim()) {
+      setStep('name');
+      return;
+    }
+    router.push('/');
+  };
+
+  // '01712345678', '+8801712345678', বাংলা অঙ্ক সব চলে
+  const toE164 = (raw: string) => {
+    const d = raw.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x))).replace(/\D/g, '');
+    const local = d.startsWith('880') ? d.slice(2) : d;
+    return /^01[3-9]\d{8}$/.test(local) ? `+88${local}` : '';
+  };
+
+  const sendCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError('');
+    const number = toE164(phone);
+    if (!number) return setError('ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন, যেমন 01712345678');
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      setAuthCookie();
+      recaptchaRef.current ||= new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+      confirmationRef.current = await signInWithPhoneNumber(auth, number, recaptchaRef.current);
+      setStep('code');
+      setCode('');
+      setCooldown(60);
+    } catch (err: any) {
+      recaptchaRef.current?.clear();
+      recaptchaRef.current = null;
+      setError(authError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!confirmationRef.current) return setStep('phone');
+    setLoading(true);
+    try {
+      await confirmationRef.current.confirm(code.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x))).trim());
+      await finishLogin();
+    } catch (err: any) {
+      setError(authError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = name.trim();
+    if (n.length < 2) return setError('আপনার নাম লিখুন');
+    setLoading(true);
+    try {
+      if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: n });
+      await setMyName(n);
       router.push('/');
     } catch (err: any) {
-      setError('ইমেইল বা পাসওয়ার্ড ভুল হয়েছে!');
+      setError(authError(err));
     } finally {
       setLoading(false);
     }
@@ -56,15 +149,16 @@ export default function LoginPage() {
     setError('');
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      // প্রথমবার এলে সার্ভার নিজেই Turso তে প্রোফাইল বানায়
-      await getMe().catch(() => null);
-      void result;
-
-      setAuthCookie();
-      router.push('/');
+      await signInWithPopup(auth, provider);
+      await finishLogin();
     } catch (err: any) {
-      setError('গুগল লগইন সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।');
+      const c = String(err?.code || '');
+      // popup আটকে গেলে বা ব্রাউজার popup চালাতে না পারলে পুরো পাতা Google এ যায়, ফিরে এসে লগইন শেষ
+      if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment' || c === 'auth/web-storage-unsupported') {
+        await signInWithRedirect(auth, provider).catch((e2) => setError(authError(e2)));
+        return;
+      }
+      setError(authError(err));
     }
   };
 
@@ -114,45 +208,62 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        {step === 'phone' && (
+        <form onSubmit={sendCode} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
-              ইমেইল ঠিকানা
+              ফোন নম্বর
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <Mail size={18} />
+                <Phone size={18} />
               </div>
               <input
-                type="email"
-                placeholder="doctor@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="01712345678"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
                 required
               />
             </div>
           </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 disabled:opacity-70 text-sm active:scale-[0.98] cursor-pointer"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <>কোড পাঠান <ArrowRight size={16} /></>}
+          </button>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center">নম্বরে ৬ অঙ্কের একটা কোড SMS এ যাবে</p>
+        </form>
+        )}
 
+        {step === 'code' && (
+        <form onSubmit={verifyCode} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
-              পাসওয়ার্ড
+              SMS এ আসা কোড
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <Lock size={18} />
+                <KeyRound size={18} />
               </div>
               <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
                 className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
                 required
               />
             </div>
           </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -160,8 +271,50 @@ export default function LoginPage() {
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <>লগইন করুন <ArrowRight size={16} /></>}
           </button>
+          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+            <button type="button" onClick={() => { setStep('phone'); setError(''); }} className="hover:text-emerald-600 cursor-pointer">
+              নম্বর বদলান
+            </button>
+            <button type="button" disabled={cooldown > 0 || loading} onClick={() => sendCode()} className="hover:text-emerald-600 disabled:opacity-50 cursor-pointer">
+              {cooldown > 0 ? `আবার কোড (${cooldown}s)` : 'আবার কোড পাঠান'}
+            </button>
+          </div>
         </form>
+        )}
 
+        {step === 'name' && (
+        <form onSubmit={saveName} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
+              আপনার নাম (লিডারবোর্ডে দেখাবে)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <User size={18} />
+              </div>
+              <input
+                type="text"
+                autoComplete="name"
+                placeholder="যেমন: রাফি আহমেদ"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
+                required
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 disabled:opacity-70 text-sm active:scale-[0.98] cursor-pointer"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <>শুরু করুন <ArrowRight size={16} /></>}
+          </button>
+        </form>
+        )}
+        <div id="recaptcha-container" />
+
+        {step !== 'name' && <>
         <div className="my-6 flex items-center gap-3">
           <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
           <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">অথবা</span>
@@ -180,6 +333,7 @@ export default function LoginPage() {
           </svg>
           Google দিয়ে লগইন করুন
         </button>
+        </>}
       </div>
     </div>
   );

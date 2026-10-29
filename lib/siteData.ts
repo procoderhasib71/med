@@ -261,3 +261,7 @@ export async function createReport(questionId: string, reason: string, by: { uid
     });
     return id;
 }
+
+export async function setName(uid: string, name: string) {
+    await turso.execute({ sql: 'UPDATE site_users SET name = ?, updated_at = ? WHERE uid = ?', args: [name.trim().slice(0, 60), nowIso(), uid] });
+}
