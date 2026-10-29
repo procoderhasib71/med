@@ -10,9 +10,9 @@ import {
     Crown,
     Medal
 } from 'lucide-react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getLeaderboard } from '@/lib/siteApi';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
 interface LeaderboardUser {
     id: string;
@@ -38,30 +38,9 @@ export default function LeaderboardPage() {
     const fetchLeaderboard = useCallback(async () => {
         setLoading(true);
         try {
-            const usersRef = collection(db, 'users');
-            let snap;
-
-            try {
-                const q = query(usersRef, orderBy('totalScore', 'desc'), limit(50));
-                snap = await getDocs(q);
-            } catch (queryErr) {
-                console.warn('Index query failed, falling back to client-side sort:', queryErr);
-                const fallbackQ = query(usersRef, limit(100));
-                snap = await getDocs(fallbackQ);
-            }
-
-            const rawList: { id: string; name: string; score: number }[] = [];
+            const { rows, me } = await getLeaderboard();
+            const rawList: { id: string; name: string; score: number }[] = [...rows];
             const uid = auth.currentUser?.uid;
-
-            snap.forEach((docSnap) => {
-                const data = docSnap.data();
-                const scoreValue = typeof data.totalScore === 'number' ? data.totalScore : 0;
-                rawList.push({
-                    id: docSnap.id,
-                    name: data.displayName || data.name || (data.email ? data.email.split('@')[0] : 'Candidate'),
-                    score: scoreValue,
-                });
-            });
 
             rawList.sort((a, b) => b.score - a.score);
 
@@ -82,7 +61,9 @@ export default function LeaderboardPage() {
                 }
             });
 
-            if (uid && !foundMe) {
+            if (uid && !foundMe && me) {
+                setMyRankData({ ...me, score: Number(me.score.toFixed(2)) });
+            } else if (uid && !foundMe) {
                 const myInRaw = rawList.find(u => u.id === uid);
                 if (myInRaw) {
                     const myActualRank = rawList.findIndex(u => u.id === uid) + 1;
@@ -105,7 +86,7 @@ export default function LeaderboardPage() {
 
     useEffect(() => {
         fetchLeaderboard();
-    }, [fetchLeaderboard]);
+    }, [fetchLeaderboard, currentUser]);   // লগইন হলে আবার, যাতে নিজের র‍্যাংক আসে
 
     const renderRankBadge = (rank: number) => {
         if (rank === 1) {

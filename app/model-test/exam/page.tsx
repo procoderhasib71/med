@@ -9,8 +9,8 @@ import {
     ShieldAlert, CheckCheck, Eye
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { getExamResult, getModelTest, submitExam } from '@/lib/siteApi';
+import { auth } from '@/lib/firebase';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
 interface ExamQuestion {
@@ -67,15 +67,11 @@ function ExamRunner() {
 
             try {
                 setLoading(true);
-                const examRef = doc(db, 'model_tests', testId);
-                const snap = await getDoc(examRef);
-
-                if (!snap.exists()) {
+                const data = await getModelTest(testId);
+                if (!data) {
                     setLoading(false);
                     return;
                 }
-
-                const data = snap.data();
                 setExamInfo(data);
                 const qList = Array.isArray(data.questions) ? data.questions : [];
                 setQuestions(qList);
@@ -86,10 +82,8 @@ function ExamRunner() {
 
                 // যদি ইউজার 'review' মোডে আসে (দাগানো উত্তর ও সমাধান দেখার জন্য)
                 if (mode === 'review' && auth.currentUser) {
-                    const resultRef = doc(db, 'users', auth.currentUser.uid, 'exam_results', testId);
-                    const rSnap = await getDoc(resultRef);
-                    if (rSnap.exists()) {
-                        const rData = rSnap.data();
+                    const rData = await getExamResult(testId).catch(() => null);
+                    if (rData) {
                         setAnswers(rData.answers || {});
                         setIsSubmitted(true);
                         isSubmittedRef.current = true;
@@ -204,28 +198,8 @@ function ExamRunner() {
         if (currentUser?.uid) {
             const uid = currentUser.uid;
             try {
-                // ইউজারের রেজাল্ট সাবকালেকশনে সংরক্ষণ (শিক্ষার্থীর দাগানো উত্তরসহ)
-                const resultRef = doc(db, 'users', uid, 'exam_results', testId);
-                await setDoc(resultRef, {
-                    testId,
-                    examTitle: examInfo?.title || 'মডেল টেস্ট',
-                    score: finalScore,
-                    totalMarks: questions.length,
-                    correct,
-                    wrong,
-                    answers, // দাগানো উত্তর
-                    is_live: isLive,
-                    submittedAt: Date.now()
-                });
-
-                // ইউজারের মূল ডকুমেন্টে সম্পন্ন পরীক্ষার তালিকা যোগ
-                const userRef = doc(db, 'users', uid);
-                await updateDoc(userRef, {
-                    completed_exams: arrayUnion(testId),
-                    totalScore: increment(finalScore),
-                    totalAttempted: increment(Object.keys(answers).length),
-                    totalCorrect: increment(correct),
-                });
+                // সার্ভার নিজে নম্বর হিসাব করে রাখে (দাগানো উত্তর, মোট স্কোর, ভুলের ব্যাংক সব একসাথে)
+                await submitExam(testId, answers, mode === 'retake');
 
                 // লোকাল স্টোরেজে অংশগ্রহণ চিহ্নিত করা
                 const local = JSON.parse(localStorage.getItem(`attempted_exams_${uid}`) || '[]');
@@ -234,11 +208,6 @@ function ExamRunner() {
                     localStorage.setItem(`attempted_exams_${uid}`, JSON.stringify(local));
                 }
 
-                // ভুল প্রশ্নের ব্যাংকে ভুল উত্তরগুলো সিঙ্ক করা
-                if (Object.keys(mistakeItems).length > 0) {
-                    const mistakeDocRef = doc(db, 'users', uid, 'stats', 'mistakes');
-                    await setDoc(mistakeDocRef, { items: mistakeItems }, { merge: true });
-                }
             } catch (e) {
                 console.error('Submission sync error:', e);
             }

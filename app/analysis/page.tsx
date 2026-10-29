@@ -18,8 +18,8 @@ import {
   Flame
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
-import { auth, db, monitoredGetDoc as getDoc } from '@/lib/firebase';
+import { getMe, getProgress } from '@/lib/siteApi';
+import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 
 interface ChapterStat {
@@ -72,14 +72,9 @@ export default function AnalysisPage() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          const userRef = doc(db, 'users', user.uid);
-          const progressDocRef = doc(db, 'users', user.uid, 'stats', 'progress');
-
-          console.log(`🔥 [FIRESTORE READ: 2 Docs] | Path: users/${user.uid} & stats/progress`);
-          const [userSnap, progressSnap] = await Promise.all([
-            getDoc(userRef),
-            getDoc(progressDocRef)
-          ]);
+          const [me, progress] = await Promise.all([getMe(), getProgress()]);
+          const userSnap = { exists: () => true, data: () => me as Record<string, any> };
+          const progressSnap = { exists: () => true, data: () => progress as Record<string, any> };
 
           let att = 0;
           let cor = 0;

@@ -8,9 +8,9 @@ import {
     Loader2, ChevronLeft, ChevronRight, Compass,
     RotateCcw, CheckCircle2, Timer, Eye, Hourglass
 } from 'lucide-react';
-import { collection, getDocs, doc, query, orderBy, limit } from 'firebase/firestore';
+import { getExamResults, getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth, monitoredGetDoc as getDoc } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
 interface ModelTestItem {
     id: string;
@@ -73,21 +73,16 @@ export default function ModelTestPortalPage() {
 
                 // ইউজার ডকুমেন্ট
                 try {
-                    const userSnap = await getDoc(doc(db, 'users', user.uid));
-                    if (userSnap.exists()) {
-                        const userData = userSnap.data();
-                        const fromDoc = userData.completed_exams || userData.attempted_exams || [];
-                        if (Array.isArray(fromDoc)) fromDoc.forEach((id: string) => attemptedSet.add(String(id)));
-                    }
+                    const me = await getMe();
+                    me.completed_exams.forEach((id) => attemptedSet.add(String(id)));
                 } catch (e) { }
 
                 // রেজাল্ট সাবকালেকশন
                 try {
-                    const resultsSnap = await getDocs(collection(db, 'users', user.uid, 'exam_results'));
-                    resultsSnap.forEach((d) => {
-                        attemptedSet.add(d.id);
-                        const rData = d.data();
-                        resultsMap[d.id] = {
+                    const results = await getExamResults();
+                    Object.entries(results).forEach(([id, rData]) => {
+                        attemptedSet.add(id);
+                        resultsMap[id] = {
                             score: rData.score ?? 0,
                             totalMarks: rData.totalMarks ?? 0,
                             correct: rData.correct ?? 0,
@@ -109,17 +104,15 @@ export default function ModelTestPortalPage() {
         async function fetchExamsFromFirestore() {
             try {
                 setLoading(true);
-                const q = query(collection(db, 'model_tests'), orderBy('createdAt', 'desc'), limit(50));
-                const snap = await getDocs(q);
+                const tests = await listModelTests(50);
 
                 const list: ModelTestItem[] = [];
-                snap.forEach((docSnap) => {
-                    const data = docSnap.data();
+                tests.forEach((data) => {
                     const questionsArr = Array.isArray(data.questions) ? data.questions : [];
                     const isLive = Boolean(data.is_live || data.type === 'live');
 
                     list.push({
-                        id: docSnap.id,
+                        id: String(data.id),
                         title: data.title || 'মডেল টেস্ট',
                         subject: data.subject || 'সমন্বিত',
                         duration_minutes: Number(data.duration_minutes) || 25,

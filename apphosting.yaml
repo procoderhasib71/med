@@ -1,0 +1,7 @@
+# Firebase App Hosting (machranga-eae85) এর সেটিংস।
+# Firebase config (NEXT_PUBLIC_FIREBASE_*, build এর সময়ও লাগে) আর TURSO_* বসানো থাকে App Hosting console এ, এই রিপোতে নয়।
+env:
+  # admin পেজ আর API তে যারা ঢুকতে পারবে (কমা দিয়ে একাধিক)
+  - variable: ADMIN_EMAILS
+    value: "procoderhasib@gmail.com"
+    availability: [RUNTIME]

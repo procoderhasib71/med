@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Bookmark, Lightbulb, CheckCircle2, RotateCcw } from 'lucide-react';
-import { doc, onSnapshot, updateDoc, arrayRemove } from 'firebase/firestore';
+import { getMe, setBookmark } from '@/lib/siteApi';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { fetchQuestionsByIds, Question } from '../qbank/actions';
 import RenderTextOrMath from '../components/RenderTextOrMath';
 
@@ -36,23 +36,20 @@ export default function BookmarksPage() {
             }
             setUid(user.uid);
 
-            // 🔥 Real-time Firestore listener: Cache bypass kore direct live data anbe
-            const userRef = doc(db, 'users', user.uid);
-            const unsubDoc = onSnapshot(userRef, async (snap) => {
-                if (!snap.exists()) {
-                    setQuestions([]);
-                    syncPortalCache(0);
+            (async () => {
+                let data: { bookmarks?: string[] } = {};
+                try {
+                    data = await getMe();
+                } catch (err) {
+                    console.error('Bookmarks load error:', err);
                     setLoading(false);
                     return;
                 }
-
-                const data = snap.data();
                 const rawBookmarks = data?.bookmarks;
                 const bookmarkIds: string[] = Array.isArray(rawBookmarks)
                     ? rawBookmarks.map((id: any) => String(id).trim()).filter(Boolean)
                     : [];
 
-                console.log("🔥 Firestore Bookmarks found:", bookmarkIds);
                 syncPortalCache(bookmarkIds.length);
 
                 if (bookmarkIds.length === 0) {
@@ -100,12 +97,7 @@ export default function BookmarksPage() {
                 } finally {
                     setLoading(false);
                 }
-            }, (err) => {
-                console.error("Firestore onSnapshot error:", err);
-                setLoading(false);
-            });
-
-            return () => unsubDoc();
+            })();
         });
 
         return () => unsubAuth();
@@ -124,12 +116,9 @@ export default function BookmarksPage() {
         }
 
         try {
-            const userRef = doc(db, 'users', uid);
-            await updateDoc(userRef, {
-                bookmarks: arrayRemove(questionId)
-            });
+            await setBookmark(questionId, false);
         } catch (e) {
-            console.error('Error removing bookmark from Firestore:', e);
+            console.error('Error removing bookmark:', e);
         }
     };
 

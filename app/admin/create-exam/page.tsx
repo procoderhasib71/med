@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/hooks/useTheme';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { saveModelTest } from '@/lib/siteApi';
+import { auth } from '@/lib/firebase';
+import { authFetch } from '@/lib/authFetch';
+import AdminGate from '@/components/AdminGate';
 import syllabusData from '@/app/constants/syllabusData.json';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
@@ -166,7 +168,7 @@ function AdminCreateExamInner() {
                 limit: String(PAGE_SIZE)
             });
 
-            const res = await fetch(`/api/admin/questions?${queryParams.toString()}`);
+            const res = await authFetch(`/api/admin/questions?${queryParams.toString()}`);
             const data = await res.json();
 
             if (data.success && Array.isArray(data.questions)) {
@@ -334,7 +336,6 @@ function AdminCreateExamInner() {
                 is_live: isLiveExam,
                 is_archive: !isLiveExam,
                 type: isLiveExam ? 'live' : 'archive',
-                createdAt: serverTimestamp(),
                 createdBy: auth.currentUser?.email || 'admin'
             };
 
@@ -343,7 +344,7 @@ function AdminCreateExamInner() {
                 examPayload.end_time = new Date(endTime).toISOString();
             }
 
-            await setDoc(doc(db, 'model_tests', examId), examPayload);
+            await saveModelTest(examId, examPayload);
             alert(isLiveExam ? '🔴 লাইভ মডেল টেস্ট সফলভাবে পাবলিশ হয়েছে!' : 'মডেল টেস্ট সফলভাবে তৈরি হয়েছে!');
             router.push('/model-test');
         } catch (err: any) {
@@ -713,7 +714,9 @@ export default function AdminCreateExamPage() {
                 <Loader2 className="animate-spin text-emerald-600" size={28} />
             </div>
         }>
-            <AdminCreateExamInner />
+            <AdminGate>
+                <AdminCreateExamInner />
+            </AdminGate>
         </Suspense>
     );
 }

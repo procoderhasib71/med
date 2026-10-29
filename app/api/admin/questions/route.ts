@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
+import { requireAdmin } from '@/lib/serverAuth';
 
 const turso = createClient({
     url: process.env.TURSO_DATABASE_URL!,
@@ -7,6 +8,8 @@ const turso = createClient({
 });
 
 export async function GET(req: NextRequest) {
+    const admin = await requireAdmin(req);
+    if (admin instanceof NextResponse) return admin;
     try {
         const { searchParams } = new URL(req.url);
 
@@ -15,7 +18,7 @@ export async function GET(req: NextRequest) {
         const topic = searchParams.get('topic') || '';
         const source = searchParams.get('source') || '';
         const search = searchParams.get('search') || '';
-        const limit = parseInt(searchParams.get('limit') || '150');
+        const limit = Math.min(parseInt(searchParams.get('limit') || '150') || 150, 500);
 
         const conditions: string[] = ['1=1'];
         const args: any[] = [];

@@ -7,8 +7,8 @@ import {
   signInWithPopup, 
   GoogleAuthProvider 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { getMe } from '@/lib/siteApi';
+import { auth } from '@/lib/firebase';
 import { Loader2, Mail, Lock, Stethoscope, ArrowRight, Sun, Moon, Home } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
@@ -57,23 +57,9 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          displayName: user.displayName || 'Doctor Candidate',
-          email: user.email || '',
-          totalStudySeconds: 0,
-          totalScore: 0,
-          averageAccuracy: 0,
-          role: 'free',
-          currentStreak: 1,
-          createdAt: new Date().toISOString()
-        }, { merge: true });
-      }
+      // প্রথমবার এলে সার্ভার নিজেই Turso তে প্রোফাইল বানায়
+      await getMe().catch(() => null);
+      void result;
 
       setAuthCookie();
       router.push('/');

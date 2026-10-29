@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc, deleteField } from 'firebase/firestore';
+import { getMistakes, removeMistakes } from '@/lib/siteApi';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth, monitoredGetDoc as getDoc } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { fetchQuestionsByIds, Question } from '../qbank/actions';
 import {
   ArrowLeft,
@@ -89,18 +89,9 @@ export default function MistakesPage() {
 
   const fetchMistakes = async (uid: string) => {
     try {
-      const mistakeDocRef = doc(db, 'users', uid, 'stats', 'mistakes');
-      console.log(`🔥 [FIRESTORE READ: 1 Doc] | Path: users/${uid}/stats/mistakes (Fetching Mistakes)`);
-      const snap = await getDoc(mistakeDocRef);
-
-      if (!snap.exists()) {
-        setAllMistakes([]);
-        syncPortalCache(0);
-        if (typeof window !== 'undefined') localStorage.removeItem('user_mistakes_cache');
-        return;
-      }
-
-      const data = snap.data();
+      const items = await getMistakes();
+      if (auth.currentUser?.uid !== uid) return;
+      const data: Record<string, any> = { items };
       const mistakeEntries: { id: string; userAnswer?: string; timestamp?: number }[] = [];
       const userAnswersMap: Record<string, { userAnswer?: string; timestamp?: number }> = {};
 
@@ -181,16 +172,7 @@ export default function MistakesPage() {
     }
 
     try {
-      const mistakeDocRef = doc(db, 'users', currentUser.uid, 'stats', 'mistakes');
-      const startTime = Date.now();
-
-      // items ম্যাপ এবং রুট দুই জায়গা থেকেই মুছে দেওয়া
-      await updateDoc(mistakeDocRef, {
-        [`items.${id}`]: deleteField(),
-        [id]: deleteField()
-      });
-
-      console.log(`✍️ [FIRESTORE WRITE: 1 Doc] | Removed Mistake: ${id} (${Date.now() - startTime}ms)`);
+      await removeMistakes([id]);
     } catch (err) {
       console.error("ডিলিট করতে সমস্যা হয়েছে:", err);
     }

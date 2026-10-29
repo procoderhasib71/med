@@ -10,9 +10,10 @@ import {
     Timer, X, LogOut, Mail, ChevronRight, AlertCircle, Loader2
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-import { doc, getDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { db, auth } from '../lib/firebase';
+import TelegramLinkButton from '@/components/TelegramLinkButton';
+import { auth } from '../lib/firebase';
 
 interface ModelTestItem {
     id: string;
@@ -41,34 +42,12 @@ export default function MedicalPortal() {
     const syncUserData = async (uid: string) => {
         try {
             // ১. ইউজার প্রোফাইল ডাটা লোড (স্কোর ও বুকমার্ক)
-            const userRef = doc(db, 'users', uid);
-            const userSnap = await getDoc(userRef).catch(() => null);
-
-            let score = 0;
-            let studySec = 0;
-            let bookmarks = 0;
-
-            if (userSnap && userSnap.exists()) {
-                const data = userSnap.data();
-                studySec = data.totalStudySeconds || 0;
-                score = Number((data.totalScore || 0).toFixed(2));
-                bookmarks = Array.isArray(data.bookmarks) ? data.bookmarks.length : 0;
-            }
-
-            // ২. ভুল প্রশ্ন সংখ্যা: users/{uid}/stats/mistakes ডকুমেন্টের items ম্যাপ থেকে
-            let mistakes = 0;
-            try {
-                const mistakeRef = doc(db, 'users', uid, 'stats', 'mistakes');
-                const mistakeSnap = await getDoc(mistakeRef);
-                if (mistakeSnap.exists()) {
-                    const mData = mistakeSnap.data();
-                    if (mData.items && typeof mData.items === 'object') {
-                        mistakes = Object.keys(mData.items).length;
-                    }
-                }
-            } catch (err) {
-                console.error("Mistakes count fetch error:", err);
-            }
+            const me = await getMe();
+            if (auth.currentUser?.uid !== uid) return;
+            const studySec = me.totalStudySeconds || 0;
+            const score = Number((me.totalScore || 0).toFixed(2));
+            const bookmarks = me.bookmarks.length;
+            const mistakes = me.mistakeCount;
 
             setTotalStudySeconds(studySec);
             setTotalScore(score);
@@ -121,15 +100,13 @@ export default function MedicalPortal() {
         async function fetchTests() {
             try {
                 setLoadingTests(true);
-                const q = query(collection(db, 'model_tests'), orderBy('createdAt', 'desc'), limit(3));
-                const snap = await getDocs(q);
+                const tests = await listModelTests(3);
 
                 const list: ModelTestItem[] = [];
-                snap.forEach((docSnap) => {
-                    const data = docSnap.data();
+                tests.forEach((data) => {
                     const questionsArr = Array.isArray(data.questions) ? data.questions : [];
                     list.push({
-                        id: docSnap.id,
+                        id: String(data.id),
                         title: data.title || 'মডেল টেস্ট',
                         subject: data.subject || 'সমন্বিত',
                         duration_minutes: Number(data.duration_minutes) || 25,
@@ -141,7 +118,7 @@ export default function MedicalPortal() {
 
                 setRecentModelTests(list);
             } catch (err) {
-                console.error("Failed to fetch model tests from Firestore:", err);
+                console.error("Failed to fetch model tests:", err);
             } finally {
                 setLoadingTests(false);
             }
@@ -248,6 +225,8 @@ export default function MedicalPortal() {
                                 <div className="font-extrabold text-sm text-[#EA580C]">{totalScore}</div>
                             </div>
                         </div>
+
+                        <TelegramLinkButton />
 
                         <button
                             onClick={handleLogout}

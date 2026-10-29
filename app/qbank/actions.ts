@@ -25,7 +25,7 @@ const serverQuestionCache = new Map<string, { data: Question[]; timestamp: numbe
 const serverSingleIdCache = new Map<string, Question>();
 
 // Cache 24 hours por expire hobe (milliseconds)
-const CACHE_TTL = 1000 * 60 * 60 * 24;
+const CACHE_TTL = 1000 * 60 * 60;   // ১ ঘণ্টা, যাতে বট থেকে ঠিক করা উত্তরও তাড়াতাড়ি দেখায়
 
 export async function fetchFilteredQuestions(page: number, filters: any): Promise<Question[]> {
     const cacheKey = `filter_${filters.subject || ''}_${filters.chapter || ''}_${filters.topic || ''}_${filters.source || ''}_${filters.varsity || ''}_${filters.year || ''}_p${page}`;

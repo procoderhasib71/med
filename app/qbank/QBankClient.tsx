@@ -21,19 +21,9 @@ import {
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useTheme } from '@/hooks/useTheme';
 import { fetchFilteredQuestions, Question } from './actions';
-import {
-    doc,
-    writeBatch,
-    increment,
-    arrayRemove,
-    arrayUnion,
-    serverTimestamp,
-    setDoc,
-    updateDoc,
-    deleteField
-} from 'firebase/firestore';
+import { getMe, getSolved, reportQuestion, setBookmark, syncAnswers } from '@/lib/siteApi';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth, monitoredGetDoc as getDoc } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 import syllabusData from '@/app/constants/syllabusData.json';
 
@@ -56,11 +46,8 @@ const pendingKey = (uid: string) => `qbank_pending_${uid}`;
 const TAB_ID = Math.random().toString(36).slice(2);
 const inflightPrefix = (uid: string) => `qbank_inflight_${uid}_`;
 const inflightKey = (uid: string) => `${inflightPrefix(uid)}${TAB_ID}`;
-const mistakeCounterKey = (uid: string) => `adq_persistent_mistake_counter_${uid}`;
 const INFLIGHT_STALE_MS = 30 * 1000;
 
-const MISTAKE_CAP = 500;
-const MISTAKE_PRUNE_EVERY = 50;
 
 const syllabus = syllabusData as Record<string, Record<string, { topics: string[]; sources: string[] }>>;
 
@@ -446,43 +433,6 @@ function QBankInner() {
         if (merged) writeQueue(uid, q);
     }, [readQueue, writeQueue]);
 
-    const pruneMistakesIfNeeded = useCallback(async (uid: string) => {
-        const counterKey = mistakeCounterKey(uid);
-        if (Number(safeStorage.getItem(counterKey) || 0) < MISTAKE_PRUNE_EVERY) return;
-        safeStorage.setItem(counterKey, '0');
-
-        try {
-            const mistakeRef = doc(db, 'users', uid, 'stats', 'mistakes');
-            const snap = await getDoc(mistakeRef);
-            if (!snap.exists()) return;
-
-            const snapData = snap.data() as Record<string, any>;
-            const hasItems = !!snapData.items && typeof snapData.items === 'object';
-            const items = (hasItems ? snapData.items : snapData) as Record<string, any>;
-            const entries = Object.entries(items).filter(([, val]) => val && typeof val === 'object' && val.timestamp);
-
-            if (entries.length <= MISTAKE_CAP) return;
-
-            entries.sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
-            const toDelete = entries.slice(0, entries.length - MISTAKE_CAP);
-
-            const updates: Record<string, any> = {};
-            toDelete.forEach(([id]) => {
-                if (hasItems) {
-                    updates[`items.${id}`] = deleteField();
-                } else {
-                    updates[id] = deleteField();
-                }
-            });
-
-            if (Object.keys(updates).length > 0) {
-                await updateDoc(mistakeRef, updates);
-            }
-        } catch (err) {
-            console.error('Mistake prune error:', err);
-        }
-    }, []);
-
     // 🚀 BATCH SYNC: Subject-wise Bucketing
     const flushPendingSync = useCallback(async () => {
         const user = auth.currentUser;
@@ -501,67 +451,13 @@ function QBankInner() {
         writeQueue(uid, getEmptyQueue());
 
         try {
-            const batch = writeBatch(db);
-
-            // ১. User Document Count
-            const userRef = doc(db, 'users', uid);
-            batch.set(userRef, {
-                totalAttempted: increment(data.attempted),
-                totalCorrect: increment(data.correct),
-                totalScore: increment(data.score)
-            }, { merge: true });
-
-            // ২. Subject-wise Solved Bucketing: sorasori bangla subject doc
-            Object.entries(data.solvedBySubject).forEach(([subjectName, ids]) => {
-                if (ids.length > 0) {
-                    const subjectSolvedRef = doc(db, 'users', uid, 'solved_by_subject', subjectName.trim());
-                    batch.set(subjectSolvedRef, {
-                        ids: arrayUnion(...ids)
-                    }, { merge: true });
-                }
-            });
-
-            // ৩. stats/progress Doc
-            const progressRef = doc(db, 'users', uid, 'stats', 'progress');
-            const progressUpdate: Record<string, any> = { subjects: {}, chapters: {} };
-
-            Object.entries(data.subjects).forEach(([key, val]) => {
-                progressUpdate.subjects[key] = {
-                    subject: val.subject,
-                    totalAttempted: increment(val.attempted),
-                    correctAnswers: increment(val.correct)
-                };
-            });
-
-            Object.entries(data.chapters).forEach(([key, val]) => {
-                progressUpdate.chapters[key] = {
-                    subject: val.subject,
-                    chapter: val.chapter,
-                    totalAttempted: increment(val.attempted),
-                    correctAnswers: increment(val.correct)
-                };
-            });
-            batch.set(progressRef, progressUpdate, { merge: true });
-
-            // ৪. stats/mistakes Doc
-            const newMistakesCount = Object.keys(data.mistakes).length;
-            if (newMistakesCount > 0) {
-                const mistakeRef = doc(db, 'users', uid, 'stats', 'mistakes');
-                batch.set(mistakeRef, { items: data.mistakes }, { merge: true });
-            }
-
-            await batch.commit();
+            // সার্ভার একবারে Turso তে লেখে (মোট স্কোর, solved, progress, ভুল; ভুলের লিস্ট ৫০০ তে সীমিত)
+            await syncAnswers(data);
             success = true;
 
             safeStorage.removeItem(inflightKey(uid));
-
-            if (newMistakesCount > 0) {
-                const counterKey = mistakeCounterKey(uid);
-                const current = Number(safeStorage.getItem(counterKey) || 0);
-                safeStorage.setItem(counterKey, String(current + newMistakesCount));
-            }
         } catch (err) {
-            console.error("Firestore sync error:", err);
+            console.error("Answer sync error:", err);
             const current = readQueue(uid);
             mergeQueues(current, data);
             writeQueue(uid, current);
@@ -571,12 +467,11 @@ function QBankInner() {
         }
 
         if (success) {
-            await pruneMistakesIfNeeded(uid);
             if (readQueue(uid).attempted >= BATCH_QUESTION_THRESHOLD) {
                 flushPendingSync();
             }
         }
-    }, [readQueue, writeQueue, pruneMistakesIfNeeded]);
+    }, [readQueue, writeQueue]);
 
     useEffect(() => {
         const testKey = '__adq_storage_test__';
@@ -639,13 +534,9 @@ function QBankInner() {
 
             (async () => {
                 try {
-                    const userRef = doc(db, 'users', uid);
-                    const docSnap = await getDoc(userRef);
+                    const me = await getMe();
                     if (auth.currentUser?.uid !== uid) return;
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setBookmarkedIds(new Set((data.bookmarks || []).map(String)));
-                    }
+                    setBookmarkedIds(new Set(me.bookmarks.map(String)));
                 } catch (e) {
                     console.error("User doc fetch error:", e);
                 }
@@ -664,13 +555,9 @@ function QBankInner() {
 
         (async () => {
             try {
-                const subjectSolvedRef = doc(db, 'users', uid, 'solved_by_subject', subDocName);
-                const snap = await getDoc(subjectSolvedRef);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    const ids: string[] = Array.isArray(data.ids) ? data.ids.map(String) : [];
-                    setSolvedIds(prev => new Set([...prev, ...ids]));
-                }
+                const ids = await getSolved(subDocName);
+                if (auth.currentUser?.uid !== uid) return;
+                setSolvedIds(prev => new Set([...prev, ...ids]));
             } catch (err) {
                 console.error("Subject solved fetch error:", err);
             }
@@ -732,9 +619,7 @@ function QBankInner() {
         });
 
         try {
-            await setDoc(doc(db, 'users', user.uid), {
-                bookmarks: isBookmarked ? arrayRemove(questionId) : arrayUnion(questionId)
-            }, { merge: true });
+            await setBookmark(questionId, !isBookmarked);
         } catch (error) {
             console.error('Error toggling bookmark:', error);
             setBookmarkedIds(prev => {
@@ -758,21 +643,7 @@ function QBankInner() {
 
         setReportSubmitting(true);
         try {
-            const reportRef = doc(db, 'reported_questions', `${String(reportingQuestion.id)}_${user.uid}`);
-            await setDoc(reportRef, {
-                questionId: String(reportingQuestion.id),
-                question: reportingQuestion.question,
-                options: [reportingQuestion.option_a, reportingQuestion.option_b, reportingQuestion.option_c, reportingQuestion.option_d].filter(Boolean),
-                correct_option: reportingQuestion.correct_option,
-                explanation: reportingQuestion.explanation || '',
-                subject: reportingQuestion.subject || activeFilters.subject || '',
-                chapter: reportingQuestion.chapter || activeFilters.chapter || '',
-                reason: reportReason.trim(),
-                reportedBy: user.uid,
-                reportedByEmail: user.email || '',
-                status: 'pending',
-                createdAt: serverTimestamp()
-            }, { merge: true });
+            await reportQuestion(String(reportingQuestion.id), reportReason.trim());
 
             showToast('ধন্যবাদ! আপনার রিপোর্ট জমা হয়েছে।');
             setReportingQuestion(null);

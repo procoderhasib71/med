@@ -23,4 +23,6 @@ export const turso = {
 
         return result;
     },
+    // ...rawTurso class er method copy kore na, tai batch alada kore bind
+    batch: (stmts: Parameters<typeof rawTurso.batch>[0], mode: Parameters<typeof rawTurso.batch>[1] = 'write') => rawTurso.batch(stmts, mode),
 };
