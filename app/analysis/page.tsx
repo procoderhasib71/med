@@ -17,9 +17,9 @@ import {
   ChevronRight,
   Flame
 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '@/lib/session';
 import { getMe, getProgress } from '@/lib/siteApi';
-import { auth } from '@/lib/firebase';
+import { session as auth } from '@/lib/session';
 import Link from 'next/link';
 
 interface ChapterStat {

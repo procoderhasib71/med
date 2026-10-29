@@ -22,8 +22,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useTheme } from '@/hooks/useTheme';
 import { fetchFilteredQuestions, Question } from './actions';
 import { getMe, getSolved, reportQuestion, setBookmark, syncAnswers } from '@/lib/siteApi';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from '@/lib/session';
+import { session as auth } from '@/lib/session';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 import syllabusData from '@/app/constants/syllabusData.json';
 

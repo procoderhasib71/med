@@ -13,6 +13,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { getMe, setMyName } from '@/lib/siteApi';
+import { ACCOUNT_URL, onAdmcqDomain } from '@/lib/platform';
 import { auth } from '@/lib/firebase';
 import { Loader2, Phone, KeyRound, User, Stethoscope, ArrowRight, Sun, Moon, Home } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -34,6 +35,11 @@ export default function LoginPage() {
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
+    // admcq.com এর subdomain এ লগইন হয় admcq.com এ (একবার লগইনে চার সাইট), লগইন শেষে এখানে ফিরে আসে
+    if (onAdmcqDomain(window.location.host)) {
+      window.location.replace(`${ACCOUNT_URL}/login?next=${encodeURIComponent(window.location.origin + '/')}`);
+      return;
+    }
     setMounted(true);
     // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ হয়
     getRedirectResult(auth).then((r) => { if (r) finishLogin(); }).catch((err) => setError(authError(err)));

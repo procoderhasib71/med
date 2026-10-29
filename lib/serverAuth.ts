@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
+import { platformFromHost, type Platform } from '@/lib/platform';
 import { ensureUser } from '@/lib/siteData';
 
 // ADMIN_EMAILS: koma diye alada kora email, hosting er environment e bosano
 const adminEmails = () =>
     (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 
-export type SignedInUser = { uid: string; email: string; name: string };
+export const SESSION_COOKIE = '__session';   // admcq.com এর লগইন বসায় (.admcq.com), চার subdomain ই পড়ে
 
+export type SignedInUser = { uid: string; email: string; name: string; phone?: string };
+
+/** কোন প্ল্যাটফর্মের সাইট থেকে request (ঠিকানা দেখে) */
+export const platformOf = (req: NextRequest): Platform =>
+    platformFromHost(req.headers.get('x-forwarded-host') || req.headers.get('host'));
+
+/** লগইন: ব্রাউজারের Firebase টোকেন (Authorization header) অথবা admcq.com এর session cookie */
 export async function getUser(req: NextRequest): Promise<SignedInUser | null> {
     const header = req.headers.get('authorization') || '';
-    if (!header.startsWith('Bearer ')) return null;
     try {
-        const t = await adminAuth.verifyIdToken(header.slice(7));
-        return { uid: t.uid, email: (t.email || '').toLowerCase(), name: String(t.name || '') };
+        const t = header.startsWith('Bearer ')
+            ? await adminAuth.verifyIdToken(header.slice(7))
+            : req.cookies.get(SESSION_COOKIE)?.value
+                ? await adminAuth.verifySessionCookie(req.cookies.get(SESSION_COOKIE)!.value)
+                : null;
+        if (!t) return null;
+        // ফোন-পাসওয়ার্ডের অ্যাকাউন্টে ইমেইলটা বানানো (8801XXXXXXXXX@phone.admcq.com), আসল ইমেইল নয়
+        const email = (t.email || '').toLowerCase();
+        const synthetic = email.endsWith('@phone.admcq.com');
+        return { uid: t.uid, email: synthetic ? '' : email, name: String(t.name || ''),
+                 phone: String(t.phone_number || (synthetic ? `+${email.split('@')[0]}` : '')) };
     } catch {
         return null;
     }

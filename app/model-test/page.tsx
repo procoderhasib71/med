@@ -9,8 +9,8 @@ import {
     RotateCcw, CheckCircle2, Timer, Eye, Hourglass
 } from 'lucide-react';
 import { getExamResults, getMe, listModelTests } from '@/lib/siteApi';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from '@/lib/session';
+import { session as auth } from '@/lib/session';
 
 interface ModelTestItem {
     id: string;

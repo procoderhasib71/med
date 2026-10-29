@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fail, requireUser } from '@/lib/serverAuth';
+import { fail, platformOf, requireUser } from '@/lib/serverAuth';
 import { getExamResult, listExamResults, submitExam } from '@/lib/siteData';
 
 // ?testId= দিলে একটা পরীক্ষার পুরো ফল (দাগানো উত্তরসহ), না দিলে সব পরীক্ষার সংক্ষেপ
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     if (user instanceof NextResponse) return user;
     const testId = new URL(req.url).searchParams.get('testId');
     if (testId) return NextResponse.json({ success: true, result: await getExamResult(user.uid, testId) });
-    return NextResponse.json({ success: true, results: await listExamResults(user.uid) });
+    return NextResponse.json({ success: true, results: await listExamResults(user.uid, platformOf(req)) });
 }
 
 // body: { testId, answers: { [questionId]: 'a' }, retake }

@@ -8,9 +8,9 @@ import {
     RotateCcw, Home, ArrowLeft, Loader2, Sparkles, Send,
     ShieldAlert, CheckCheck, Eye
 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '@/lib/session';
 import { getExamResult, getModelTest, submitExam } from '@/lib/siteApi';
-import { auth } from '@/lib/firebase';
+import { session as auth } from '@/lib/session';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
 interface ExamQuestion {

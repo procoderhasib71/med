@@ -11,9 +11,9 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { getMe, listModelTests } from '@/lib/siteApi';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from '@/lib/session';
 import TelegramLinkButton from '@/components/TelegramLinkButton';
-import { auth } from '../lib/firebase';
+import { session as auth } from '@/lib/session';
 
 interface ModelTestItem {
     id: string;

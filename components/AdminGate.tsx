@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from '@/lib/session';
 import Link from 'next/link';
-import { auth } from '@/lib/firebase';
+import { session as auth } from '@/lib/session';
 import { authFetch } from '@/lib/authFetch';
 
 // Admin পেজ মোড়ানোর জন্য। আসল সুরক্ষা সার্ভারে (প্রতিটা admin API নিজে যাচাই করে), এটা শুধু পেজ লুকায়।

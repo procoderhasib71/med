@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fail, requireUser } from '@/lib/serverAuth';
+import { fail, platformOf, requireUser } from '@/lib/serverAuth';
 import { getMistakes, removeMistakes } from '@/lib/siteData';
 
 export async function GET(req: NextRequest) {
     const user = await requireUser(req);
     if (user instanceof NextResponse) return user;
-    return NextResponse.json({ success: true, ...(await getMistakes(user.uid)) });
+    return NextResponse.json({ success: true, ...(await getMistakes(user.uid, platformOf(req))) });
 }
 
 // body: { ids: [...] }

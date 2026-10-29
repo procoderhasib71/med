@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMistakes, removeMistakes } from '@/lib/siteApi';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from '@/lib/session';
+import { session as auth } from '@/lib/session';
 import { fetchQuestionsByIds, Question } from '../qbank/actions';
 import {
   ArrowLeft,

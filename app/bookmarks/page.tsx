@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Bookmark, Lightbulb, CheckCircle2, RotateCcw } from 'lucide-react';
 import { getMe, setBookmark } from '@/lib/siteApi';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from '@/lib/session';
+import { session as auth } from '@/lib/session';
 import { fetchQuestionsByIds, Question } from '../qbank/actions';
 import RenderTextOrMath from '../components/RenderTextOrMath';
 

@@ -1,6 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { turso } from '@/lib/turso';
+import { platformFromHost } from '@/lib/platform';
 
 export type Question = {
     id: string;
@@ -28,7 +30,10 @@ const serverSingleIdCache = new Map<string, Question>();
 const CACHE_TTL = 1000 * 60 * 60;   // ১ ঘণ্টা, যাতে বট থেকে ঠিক করা উত্তরও তাড়াতাড়ি দেখায়
 
 export async function fetchFilteredQuestions(page: number, filters: any): Promise<Question[]> {
-    const cacheKey = `filter_${filters.subject || ''}_${filters.chapter || ''}_${filters.topic || ''}_${filters.source || ''}_${filters.varsity || ''}_${filters.year || ''}_p${page}`;
+    // কোন সাইট (med/ka/kha/eng) থেকে ডাকা, শুধু সেই প্ল্যাটফর্মের প্রশ্ন
+    const h = await headers();
+    const platform = platformFromHost(h.get('x-forwarded-host') || h.get('host'));
+    const cacheKey = `${platform}_filter_${filters.subject || ''}_${filters.chapter || ''}_${filters.topic || ''}_${filters.source || ''}_${filters.varsity || ''}_${filters.year || ''}_p${page}`;
 
     const cachedEntry = serverQuestionCache.get(cacheKey);
     const now = Date.now();
@@ -37,8 +42,8 @@ export async function fetchFilteredQuestions(page: number, filters: any): Promis
         return cachedEntry.data;
     }
 
-    let sql = 'SELECT * FROM questions WHERE 1=1';
-    let args: string[] = [];
+    let sql = 'SELECT * FROM questions WHERE platform = ?';
+    let args: string[] = [platform];
 
     if (filters.subject) {
         sql += ' AND subject = ?';

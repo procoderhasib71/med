@@ -11,8 +11,8 @@ import {
     Medal
 } from 'lucide-react';
 import { getLeaderboard } from '@/lib/siteApi';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from '@/lib/session';
+import { session as auth } from '@/lib/session';
 
 interface LeaderboardUser {
     id: string;

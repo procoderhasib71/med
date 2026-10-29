@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
+import { PLATFORMS, platformFromHost } from '@/lib/platform';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const viewport: Viewport = {
@@ -11,18 +13,23 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export const metadata: Metadata = {
-  title: 'ADQLive Medical QBank',
+// সাইটের ঠিকানা অনুযায়ী নাম (med/ka/kha/eng)
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  const p = PLATFORMS[platformFromHost(h.get('x-forwarded-host') || h.get('host'))];
+  return {
+  title: p.title,
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MedQBank',
+    title: p.short,
   },
   icons: {
     apple: '/icons/apple-touch-icon.png',
   },
 };
+}
 
 export default function RootLayout({
   children,

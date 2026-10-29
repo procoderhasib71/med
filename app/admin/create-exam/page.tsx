@@ -22,7 +22,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/hooks/useTheme';
 import { saveModelTest } from '@/lib/siteApi';
-import { auth } from '@/lib/firebase';
+import { session as auth } from '@/lib/session';
 import { authFetch } from '@/lib/authFetch';
 import AdminGate from '@/components/AdminGate';
 import syllabusData from '@/app/constants/syllabusData.json';

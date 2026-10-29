@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
-import { requireAdmin } from '@/lib/serverAuth';
+import { platformOf, requireAdmin } from '@/lib/serverAuth';
 
 const turso = createClient({
     url: process.env.TURSO_DATABASE_URL!,
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get('search') || '';
         const limit = Math.min(parseInt(searchParams.get('limit') || '150') || 150, 500);
 
-        const conditions: string[] = ['1=1'];
-        const args: any[] = [];
+        const conditions: string[] = ['platform = ?'];
+        const args: any[] = [platformOf(req)];
 
         if (subject) {
             conditions.push('subject = ?');
