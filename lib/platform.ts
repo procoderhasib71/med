@@ -11,6 +11,8 @@ export type Platform = keyof typeof PLATFORMS;
 
 export const ROOT_DOMAIN = 'admcq.com';
 export const ACCOUNT_URL = `https://${ROOT_DOMAIN}`;
+// admcq.com এর লগইন চালু হলে hosting এর env এ NEXT_PUBLIC_ACCOUNT_LOGIN=1 দাও; তার আগে প্রতিটা সাইটে নিজের লগইন
+export const CENTRAL_LOGIN = process.env.NEXT_PUBLIC_ACCOUNT_LOGIN === '1';
 
 export function platformFromHost(host: string | null | undefined): Platform {
     const sub = String(host || '').toLowerCase().split(':')[0].split('.')[0];
