@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, FilePlus2, Flag, KeyRound, Loader2, LogOut, Settings, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ChevronRight, FilePlus2, Flag, KeyRound, ListChecks, Loader2, LogOut, Settings, ShieldCheck, Sparkles, X } from 'lucide-react';
 import AdminGate from '@/components/AdminGate';
 import { LangSwitch, useLang } from '@/lib/i18n';
 
@@ -11,6 +11,7 @@ import { LangSwitch, useLang } from '@/lib/i18n';
 const TOOLS = [
     { href: '/admin/create-exam', icon: FilePlus2, title: ['মডেল টেস্ট বানান', 'Create model test'] as const, hint: ['প্রশ্ন বাছাই করে নতুন পরীক্ষা', 'Pick questions for a new exam'] as const, color: 'text-emerald-400 bg-emerald-500/10' },
     { href: '/admin/explanations', icon: Sparkles, title: ['AI ব্যাখ্যা যাচাই', 'Review AI explanations'] as const, hint: ['approve করলে তবেই DB তে যায়', 'Saved to the DB only after approval'] as const, color: 'text-violet-400 bg-violet-500/10' },
+    { href: '/admin/ai-review', icon: ListChecks, title: ['AI এর ধরা ভুল', 'AI-flagged errors'] as const, hint: ['ভুল উত্তর/ব্যাখ্যা দেখে ঠিক করুন', 'Check and fix wrong answers/explanations'] as const, color: 'text-amber-400 bg-amber-500/10' },
     { href: '/reports', icon: Flag, title: ['ছাত্রদের রিপোর্ট', 'Student reports'] as const, hint: ['ভুল উত্তরের অভিযোগ দেখে ঠিক করুন', 'Review and fix wrong-answer reports'] as const, color: 'text-rose-400 bg-rose-500/10' },
 ];
 
