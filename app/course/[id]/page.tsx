@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import BrandLoader from '@/components/BrandLoader';
 import { authFetch } from '@/lib/authFetch';
 import { isPlatform } from '@/lib/platform';
 import { onAuthStateChanged, session } from '@/lib/session';
@@ -23,9 +23,6 @@ export default function CourseShortcut({ params }: { params: Promise<{ id: strin
         setError('কোর্স চালু করা যায়নি, আবার চেষ্টা করুন।');
     }), [id]);
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-slate-500">
-            {error || <Loader2 className="animate-spin text-emerald-500" />}
-        </div>
-    );
+    if (!error) return <BrandLoader text="কোর্স চালু হচ্ছে..." />;
+    return <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-slate-500">{error}</div>;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import BrandLoader from '@/components/BrandLoader';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -252,12 +253,7 @@ function ExamRunner() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    পরীক্ষা লোড হচ্ছে...
-                </p>
-            </div>
+            <BrandLoader text="পরীক্ষা লোড হচ্ছে..." />
         );
     }
 
@@ -553,11 +549,7 @@ function ExamRunner() {
 
 export default function ModelTestExamPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-                <Loader2 className="animate-spin text-emerald-600" size={26} />
-            </div>
-        }>
+        <Suspense fallback={<BrandLoader />}>
             <ExamRunner />
         </Suspense>
     );

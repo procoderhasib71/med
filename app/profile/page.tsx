@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BadgeCheck, CalendarDays, Check, KeyRound, Loader2, LogOut, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, CalendarDays, Check, KeyRound, LogOut, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
 import { ACCENT, COURSES, type CourseId } from '@/lib/courses';
 import { bn, initials, pct, showDate, useAccount } from '@/lib/useAccount';
 import CourseIcon from '@/components/CourseIcon';
+import BrandLoader from '@/components/BrandLoader';
 import { BotPanel, card, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
 
 // স্টুডেন্ট প্রোফাইল: অ্যাকাউন্ট, যে কোর্সগুলো নেওয়া (শুধু সেগুলো চালু), নাম-পাসওয়ার্ড, মাছরাঙা বট।
@@ -26,7 +27,7 @@ export default function ProfilePage() {
         if (await acc.enroll(id)) window.history.replaceState(null, '', '/profile');
     };
 
-    if (acc.status === 'loading') return <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#0B1120]"><Loader2 className="animate-spin text-emerald-500" /></div>;
+    if (acc.status === 'loading') return <BrandLoader text="প্রোফাইল লোড হচ্ছে..." />;
     const p = acc.profile;
     if (!p) return (
         <div className="min-h-screen flex items-center justify-center text-sm bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-700 dark:text-slate-200 px-4 text-center">

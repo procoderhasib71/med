@@ -19,6 +19,7 @@ import { ArrowRight, KeyRound, Loader2, Lock, Phone, User as UserIcon } from 'lu
 import { auth, phoneEmail, toE164 } from '@/lib/firebase';
 import { getMe, setMyName } from '@/lib/siteApi';
 import { onAuthStateChanged, session } from '@/lib/session';
+import BrandLoader from '@/components/BrandLoader';
 
 // স্টুডেন্ট লগইন (app.admcq.com): ফোন নম্বর + পাসওয়ার্ড, OTP ছাড়া।
 // নতুন অ্যাকাউন্ট আর পাসওয়ার্ড ভুলে গেলে: ফোনে একবার OTP, তারপর নিজের পাসওয়ার্ড।
@@ -86,14 +87,18 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);   // লগইন আছে কিনা দেখা শেষ না হলে ফর্ম নয়, লোডার
   const confirmation = useRef<ConfirmationResult | null>(null);
   const recaptcha = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
-    // আগে থেকেই লগইন থাকলে সোজা ক্লাসরুমে (শুধু প্রথমবারের অবস্থা দেখি; রেজিস্ট্রেশনের মাঝে OTP তে লগইন হলে নয়)
+    // আগে থেকেই লগইন থাকলে ফর্ম না দেখিয়ে সোজা ক্লাসরুমে (শুধু প্রথমবারের অবস্থা দেখি; রেজিস্ট্রেশনের মাঝে OTP তে লগইন হলে নয়)
     let first = true;
     const stop = onAuthStateChanged(session, (user) => {
-      if (first && user) window.location.replace(nextParam() || '/');
+      if (first) {
+        if (user) window.location.replace(nextParam() || '/');
+        else setChecking(false);
+      }
       first = false;
     });
     // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ
@@ -207,6 +212,8 @@ export default function LoginPage() {
     }
     await finish(false);
   });
+
+  if (checking) return <BrandLoader />;
 
   const title = mode === 'login' ? 'স্টুডেন্ট লগইন' : mode === 'register' ? 'রেজিস্ট্রেশন' : 'পাসওয়ার্ড ভুলে গেছেন?';
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
+import BrandLoader from '@/components/BrandLoader';
 import {
     ChevronDown,
     Loader2,
@@ -1171,11 +1172,7 @@ function QBankInner() {
 export default function QBankClient() {
     return (
         <Suspense
-            fallback={
-                <div className="min-h-screen flex items-center justify-center bg-slate-100/60 dark:bg-[#0B1120]">
-                    <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400" size={28} />
-                </div>
-            }
+            fallback={<BrandLoader />}
         >
             <QBankInner />
         </Suspense>
