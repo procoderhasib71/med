@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle, Trash2, Copy, Check, Bot, Sparkles } from 'luci
 import Link from 'next/link';
 import AdminGate from '@/components/AdminGate';
 import { authFetch } from '@/lib/authFetch';
+import { useLang } from '@/lib/i18n';
 
 type Report = {
     id: string;
@@ -28,6 +29,7 @@ type Report = {
 const LETTERS = ['a', 'b', 'c', 'd'];
 
 function ReportsInner() {
+    const { t } = useLang();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<string | null>(null);
@@ -39,9 +41,9 @@ function ReportsInner() {
             const res = await authFetch('/api/admin/reports');
             const data = await res.json();
             if (data.success) setReports(data.reports);
-            else setError(data.error || 'লোড করা যায়নি');
+            else setError(data.error || t('লোড করা যায়নি', 'Could not load'));
         } catch {
-            setError('লোড করা যায়নি');
+            setError(t('লোড করা যায়নি', 'Could not load'));
         } finally {
             setLoading(false);
         }
@@ -50,14 +52,14 @@ function ReportsInner() {
     useEffect(() => { load(); }, [load]);
 
     const act = async (id: string, action: 'resolve' | 'delete' | 'fix', option?: string) => {
-        if (action === 'delete' && !confirm('রিপোর্টটি মুছে ফেলতে চান?')) return;
-        if (action === 'fix' && !confirm(`সঠিক উত্তর ${option?.toUpperCase()} করে সাইট আর বট দুই জায়গাতেই বদলাবে। নিশ্চিত?`)) return;
+        if (action === 'delete' && !confirm(t('রিপোর্টটি মুছে ফেলতে চান?', 'Delete this report?'))) return;
+        if (action === 'fix' && !confirm(t(`সঠিক উত্তর ${option?.toUpperCase()} করে সাইট আর বট দুই জায়গাতেই বদলাবে। নিশ্চিত?`, `This sets the correct answer to ${option?.toUpperCase()} on both the site and the bot. Sure?`))) return;
         setBusyId(id);
         setError('');
         try {
             const res = await authFetch('/api/admin/reports', { method: 'POST', body: JSON.stringify({ id, action, option }) });
             const data = await res.json();
-            if (!data.success) setError(data.error || 'সমস্যা হয়েছে');
+            if (!data.success) setError(data.error || t('সমস্যা হয়েছে', 'Something went wrong'));
             await load();
         } finally {
             setBusyId(null);
@@ -80,21 +82,21 @@ function ReportsInner() {
                         <ArrowLeft size={16} />
                     </Link>
                     <div>
-                        <h1 className="text-lg font-black flex items-center gap-2">রিপোর্ট করা প্রশ্নসমূহ 🚩</h1>
-                        <span className="text-xs text-slate-400">মোট রিপোর্ট: {reports.length} টি · বাকি: {pending} টি</span>
+                        <h1 className="text-lg font-black flex items-center gap-2">{t('রিপোর্ট করা প্রশ্নসমূহ', 'Reported questions')} 🚩</h1>
+                        <span className="text-xs text-slate-400">{t(`মোট রিপোর্ট: ${reports.length} টি · বাকি: ${pending} টি`, `Reports: ${reports.length} · pending: ${pending}`)}</span>
                     </div>
                 </div>
                 <Link href="/admin/explanations" className="text-xs px-3 py-1.5 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-600/40 font-semibold flex items-center gap-1.5">
-                    <Sparkles size={14} /> AI ব্যাখ্যা অনুমোদন
+                    <Sparkles size={14} /> {t('AI ব্যাখ্যা অনুমোদন', 'Approve AI explanations')}
                 </Link>
             </header>
 
             <main className="max-w-4xl mx-auto space-y-4">
                 {error && <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-900 text-rose-300 text-xs">{error}</div>}
                 {loading ? (
-                    <div className="text-center py-20 text-slate-500 text-sm">লোড হচ্ছে...</div>
+                    <div className="text-center py-20 text-slate-500 text-sm">{t('লোড হচ্ছে...', 'Loading...')}</div>
                 ) : reports.length === 0 ? (
-                    <div className="text-center py-20 text-slate-500 text-sm">এখনও কোনো প্রশ্নের রিপোর্ট নেই।</div>
+                    <div className="text-center py-20 text-slate-500 text-sm">{t('এখনও কোনো প্রশ্নের রিপোর্ট নেই।', 'No reported questions yet.')}</div>
                 ) : (
                     reports.map((r) => {
                         const targetQuestionId = r.questionId || r.id;
@@ -109,17 +111,17 @@ function ReportsInner() {
                                         <button
                                             onClick={() => copyToClipboard(String(targetQuestionId))}
                                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-mono font-bold transition-all cursor-pointer"
-                                            title="ID কপি করুন"
+                                            title={t('ID কপি করুন', 'Copy ID')}
                                         >
                                             <span>ID: #{targetQuestionId}</span>
                                             {copiedId === String(targetQuestionId) ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
                                         </button>
                                         <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                                            {r.subject} • {r.chapter || 'সাধারণ অধ্যায়'}
+                                            {r.subject} • {r.chapter || t('সাধারণ অধ্যায়', 'General chapter')}
                                         </span>
                                         {r.via === 'bot' && (
                                             <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                                                <Bot size={13} /> বট থেকে
+                                                <Bot size={13} /> {t('বট থেকে', 'From bot')}
                                             </span>
                                         )}
                                     </div>
@@ -127,7 +129,7 @@ function ReportsInner() {
                                     <div className="flex items-center gap-2">
                                         {resolved ? (
                                             <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
-                                                <CheckCircle size={14} /> {r.fixedTo ? `উত্তর ${r.fixedFrom?.toUpperCase() || '?'} → ${r.fixedTo.toUpperCase()}` : 'সমাধানকৃত'}
+                                                <CheckCircle size={14} /> {r.fixedTo ? `${t('উত্তর', 'Answer')} ${r.fixedFrom?.toUpperCase() || '?'} → ${r.fixedTo.toUpperCase()}` : t('সমাধানকৃত', 'Resolved')}
                                             </span>
                                         ) : (
                                             <button
@@ -135,14 +137,14 @@ function ReportsInner() {
                                                 onClick={() => act(r.id, 'resolve')}
                                                 className="text-xs px-3 py-1 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-600/40 font-semibold hover:bg-emerald-600/30 transition-colors disabled:opacity-50"
                                             >
-                                                কিছু বদলানো লাগবে না
+                                                {t('কিছু বদলানো লাগবে না', 'No change needed')}
                                             </button>
                                         )}
                                         <button
                                             disabled={busy}
                                             onClick={() => act(r.id, 'delete')}
                                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                                            title="রিপোর্ট মুছুন"
+                                            title={t('রিপোর্ট মুছুন', 'Delete report')}
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -160,14 +162,14 @@ function ReportsInner() {
                                                 <div key={i} className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-sm ${isCorrect ? 'border-emerald-600/60 bg-emerald-950/30' : 'border-slate-800 bg-slate-950/40'}`}>
                                                     <span><b className="mr-1.5">{letter.toUpperCase()}.</b>{opt}</span>
                                                     {isCorrect ? (
-                                                        <span className="text-[10px] font-bold text-emerald-400 shrink-0">এখনকার উত্তর</span>
+                                                        <span className="text-[10px] font-bold text-emerald-400 shrink-0">{t('এখনকার উত্তর', 'Current answer')}</span>
                                                     ) : !resolved && (
                                                         <button
                                                             disabled={busy}
                                                             onClick={() => act(r.id, 'fix', letter)}
                                                             className="text-[11px] shrink-0 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-700 text-slate-200 font-semibold disabled:opacity-50"
                                                         >
-                                                            এটা সঠিক
+                                                            {t('এটা সঠিক', 'Mark correct')}
                                                         </button>
                                                     )}
                                                 </div>
@@ -177,7 +179,7 @@ function ReportsInner() {
                                 )}
 
                                 <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-900/40 text-xs text-amber-200 leading-relaxed">
-                                    <span className="font-bold text-amber-400">রিপোর্টের কারণ: </span>
+                                    <span className="font-bold text-amber-400">{t('রিপোর্টের কারণ: ', 'Reason: ')}</span>
                                     {r.reason}
                                     {(r.reportedByName || r.reportedByEmail) && (
                                         <span className="text-amber-500/70"> · {r.reportedByName || r.reportedByEmail}</span>
@@ -186,7 +188,7 @@ function ReportsInner() {
 
                                 {r.aiVerdict && (
                                     <div className="p-3 rounded-xl bg-violet-950/20 border border-violet-900/40 text-xs text-violet-200 leading-relaxed">
-                                        <span className="font-bold text-violet-300">🤖 AI এর যাচাই{r.aiOption ? ` (মনে করছে উত্তর ${r.aiOption.toUpperCase()})` : ''}: </span>
+                                        <span className="font-bold text-violet-300">🤖 {t('AI এর যাচাই', 'AI check')}{r.aiOption ? t(` (মনে করছে উত্তর ${r.aiOption.toUpperCase()})`, ` (thinks the answer is ${r.aiOption.toUpperCase()})`) : ''}: </span>
                                         {r.aiVerdict}
                                     </div>
                                 )}

@@ -26,6 +26,7 @@ import { saveModelTest } from '@/lib/siteApi';
 import { session as auth } from '@/lib/session';
 import { authFetch } from '@/lib/authFetch';
 import AdminGate from '@/components/AdminGate';
+import { useLang } from '@/lib/i18n';
 import syllabusData from '@/app/constants/syllabusData.json';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
@@ -113,6 +114,7 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 
 function AdminCreateExamInner() {
     const { isDarkMode, toggleTheme } = useTheme();
+    const { t } = useLang();
     const router = useRouter();
 
     // Basic Config
@@ -346,7 +348,7 @@ function AdminCreateExamInner() {
             }
 
             await saveModelTest(examId, examPayload);
-            alert(isLiveExam ? '🔴 লাইভ মডেল টেস্ট সফলভাবে পাবলিশ হয়েছে!' : 'মডেল টেস্ট সফলভাবে তৈরি হয়েছে!');
+            alert(isLiveExam ? t('🔴 লাইভ মডেল টেস্ট সফলভাবে পাবলিশ হয়েছে!', '🔴 Live model test published!') : t('মডেল টেস্ট সফলভাবে তৈরি হয়েছে!', 'Model test created!'));
             router.push('/model-test');
         } catch (err: any) {
             console.error('Save exam error:', err);
@@ -369,7 +371,7 @@ function AdminCreateExamInner() {
                                 <ArrowLeft size={15} />
                             </button>
                             <span className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                                <Sparkles size={16} className="text-emerald-500" /> মডেল টেস্ট জেনারেটর
+                                <Sparkles size={16} className="text-emerald-500" /> {t('মডেল টেস্ট জেনারেটর', 'Model test generator')}
                             </span>
                         </div>
 
@@ -387,7 +389,7 @@ function AdminCreateExamInner() {
                 <div className="mb-3.5 sm:mb-5 bg-white dark:bg-[#0c1322] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                            <Sparkles size={15} /> পরীক্ষার প্রাথমিক কনফিগারেশন
+                            <Sparkles size={15} /> {t('পরীক্ষার প্রাথমিক কনফিগারেশন', 'Basic exam settings')}
                         </h2>
 
                         {/* 🔴 Live Exam Switcher */}
@@ -400,7 +402,7 @@ function AdminCreateExamInner() {
                                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                             >
-                                সাধারণ টেস্ট
+                                {t('সাধারণ টেস্ট', 'Regular test')}
                             </button>
                             <button
                                 type="button"
@@ -411,24 +413,24 @@ function AdminCreateExamInner() {
                                     }`}
                             >
                                 <span className={`w-1.5 h-1.5 rounded-full ${isLiveExam ? 'bg-white animate-pulse' : 'bg-rose-500'}`}></span>
-                                লাইভ এক্সাম
+                                {t('লাইভ এক্সাম', 'Live exam')}
                             </button>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 mb-3">
                         <div className="sm:col-span-2">
-                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">পরীক্ষার নাম (Title)</label>
+                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">{t('পরীক্ষার নাম', 'Title')}</label>
                             <input
                                 type="text"
-                                placeholder="যেমন: উদ্ভিদবিজ্ঞান ফুল পেপার মক টেস্ট ০১"
+                                placeholder={t('যেমন: উদ্ভিদবিজ্ঞান ফুল পেপার মক টেস্ট ০১', 'e.g. Botany full paper mock test 01')}
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">সময় (মিনিট)</label>
+                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">{t('সময় (মিনিট)', 'Duration (minutes)')}</label>
                             <input
                                 type="number"
                                 value={duration}
@@ -437,7 +439,7 @@ function AdminCreateExamInner() {
                             />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">নেগেটিভ মার্কিং</label>
+                            <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">{t('নেগেটিভ মার্কিং', 'Negative marking')}</label>
                             <input
                                 type="number"
                                 step="0.05"
@@ -452,12 +454,12 @@ function AdminCreateExamInner() {
                     {isLiveExam && (
                         <div className="p-3 sm:p-4 rounded-xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 transition-all">
                             <span className="text-xs font-black text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-2.5">
-                                <Clock size={14} /> লাইভ সময়সূচি নির্ধারণ (Schedule Window)
+                                <Clock size={14} /> {t('লাইভ সময়সূচি নির্ধারণ', 'Live schedule window')}
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                        শুরুর সময় (Start Time)
+                                        {t('শুরুর সময়', 'Start time')}
                                     </label>
                                     <input
                                         type="datetime-local"
@@ -468,7 +470,7 @@ function AdminCreateExamInner() {
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                                        শেষের সময় (End Time)
+                                        {t('শেষের সময়', 'End time')}
                                     </label>
                                     <input
                                         type="datetime-local"
@@ -488,16 +490,16 @@ function AdminCreateExamInner() {
                 {/* 2. Syllabus Filter Accordion */}
                 <div className="mb-3.5 sm:mb-5 bg-white dark:bg-[#0c1322] p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3">
-                        <CustomDropdown options={availableSubjects} value={filters.subject} onChange={(val: string) => handleFilterChange('subject', val)} placeholder="সব বিষয়" />
-                        <CustomDropdown options={availableChapters} value={filters.chapter} onChange={(val: string) => handleFilterChange('chapter', val)} placeholder="সব অধ্যায়" />
-                        <CustomDropdown options={availableTopics} value={filters.topic} onChange={(val: string) => handleFilterChange('topic', val)} placeholder="সব টপিক" />
-                        <CustomDropdown options={availableSources} value={filters.source} onChange={(val: string) => handleFilterChange('source', val)} placeholder="সব উৎস" />
+                        <CustomDropdown options={availableSubjects} value={filters.subject} onChange={(val: string) => handleFilterChange('subject', val)} placeholder={t('সব বিষয়', 'All subjects')} />
+                        <CustomDropdown options={availableChapters} value={filters.chapter} onChange={(val: string) => handleFilterChange('chapter', val)} placeholder={t('সব অধ্যায়', 'All chapters')} />
+                        <CustomDropdown options={availableTopics} value={filters.topic} onChange={(val: string) => handleFilterChange('topic', val)} placeholder={t('সব টপিক', 'All topics')} />
+                        <CustomDropdown options={availableSources} value={filters.source} onChange={(val: string) => handleFilterChange('source', val)} placeholder={t('সব উৎস', 'All sources')} />
                     </div>
 
                     {showAdvanced && (
                         <div className="grid grid-cols-2 gap-1.5 sm:gap-3 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                            <CustomDropdown options={varsityList} value={filters.varsity} onChange={(val: string) => handleFilterChange('varsity', val)} placeholder="সব ভার্সিটি" />
-                            <CustomDropdown options={yearList} value={filters.year} onChange={(val: string) => handleFilterChange('year', val)} placeholder="সকল শিক্ষাবর্ষ (সাল)" />
+                            <CustomDropdown options={varsityList} value={filters.varsity} onChange={(val: string) => handleFilterChange('varsity', val)} placeholder={t('সব ভার্সিটি', 'All universities')} />
+                            <CustomDropdown options={yearList} value={filters.year} onChange={(val: string) => handleFilterChange('year', val)} placeholder={t('সকল শিক্ষাবর্ষ (সাল)', 'All years')} />
                         </div>
                     )}
 
@@ -508,7 +510,7 @@ function AdminCreateExamInner() {
                                 className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-80 flex items-center gap-1 cursor-pointer select-none"
                             >
                                 <SlidersHorizontal size={12} />
-                                <span>{showAdvanced ? 'অ্যাডভান্সড বন্ধ' : 'অ্যাডভান্সড ফিল্টার'}</span>
+                                <span>{showAdvanced ? t('অ্যাডভান্সড বন্ধ', 'Hide advanced') : t('অ্যাডভান্সড ফিল্টার', 'Advanced filters')}</span>
                                 {(filters.varsity || filters.year) && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                                 )}
@@ -520,7 +522,7 @@ function AdminCreateExamInner() {
                                     className="text-[10px] sm:text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer"
                                 >
                                     <RotateCcw size={11} />
-                                    <span>রিসেট</span>
+                                    <span>{t('রিসেট', 'Reset')}</span>
                                 </button>
                             )}
                         </div>
@@ -528,7 +530,7 @@ function AdminCreateExamInner() {
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
-                                placeholder="প্রশ্ন বা টপিক খুঁজুন..."
+                                placeholder={t('প্রশ্ন বা টপিক খুঁজুন...', 'Search questions or topics...')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-32 sm:w-48 px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
@@ -538,7 +540,7 @@ function AdminCreateExamInner() {
                                 className="flex items-center gap-1 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                             >
                                 <Search size={12} />
-                                <span>ফিল্টার করুন</span>
+                                <span>{t('ফিল্টার করুন', 'Apply filter')}</span>
                             </button>
                         </div>
                     </div>
@@ -548,7 +550,7 @@ function AdminCreateExamInner() {
                 {activeFilters && (
                     <div className="flex items-center justify-between mb-3 px-1">
                         <span className="text-xs sm:text-sm font-extrabold text-slate-600 dark:text-slate-300">
-                            মোট লোড হয়েছে: {questions.length} টি
+                            {t(`মোট লোড হয়েছে: ${questions.length} টি`, `Loaded: ${questions.length}`)}
                         </span>
 
                         <div className="flex items-center gap-2">
@@ -557,14 +559,14 @@ function AdminCreateExamInner() {
                                 onClick={handleSelectAll}
                                 className="px-3 py-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                             >
-                                সব সিলেক্ট
+                                {t('সব সিলেক্ট', 'Select all')}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleRandom20}
                                 className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
                             >
-                                র‍্যান্ডম ২০টি
+                                {t('র‍্যান্ডম ২০টি', 'Random 20')}
                             </button>
                         </div>
                     </div>
@@ -574,14 +576,14 @@ function AdminCreateExamInner() {
                 {!activeFilters ? (
                     <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
                         <Filter className="w-8 h-8 text-emerald-500 opacity-60 mb-1" />
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">প্রশ্ন প্রদর্শন বন্ধ আছে</span>
-                        <p className="max-w-xs text-slate-400">উপরের ড্রপডাউন থেকে বিষয় ও অধ্যায় নির্বাচন করে <strong>"ফিল্টার করুন"</strong> বাটনে চাপ দিন।</p>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{t('প্রশ্ন প্রদর্শন বন্ধ আছে', 'No questions shown yet')}</span>
+                        <p className="max-w-xs text-slate-400">{t('উপরের ড্রপডাউন থেকে বিষয় ও অধ্যায় নির্বাচন করে', 'Pick a subject and chapter above, then press')} <strong>"{t('ফিল্টার করুন', 'Apply filter')}"</strong>{t(' বাটনে চাপ দিন।', '.')}</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {questions.length === 0 && !loading && (
                             <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
-                                কোনো প্রশ্ন পাওয়া যায়নি। ফিল্টার পরিবর্তন করে দেখুন।
+                                {t('কোনো প্রশ্ন পাওয়া যায়নি। ফিল্টার পরিবর্তন করে দেখুন।', 'No questions found. Try other filters.')}
                             </div>
                         )}
 
@@ -667,7 +669,7 @@ function AdminCreateExamInner() {
                         {loading && (
                             <div className="flex flex-col items-center justify-center py-6 text-slate-400">
                                 <Loader2 className="animate-spin text-emerald-600 mb-2" size={24} />
-                                <span className="text-xs">পরবর্তী ১০টি প্রশ্ন লোড হচ্ছে...</span>
+                                <span className="text-xs">{t('পরবর্তী ১০টি প্রশ্ন লোড হচ্ছে...', 'Loading next 10 questions...')}</span>
                             </div>
                         )}
                     </div>
@@ -678,9 +680,9 @@ function AdminCreateExamInner() {
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0c1322]/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-3 sm:p-4">
                 <div className="max-w-4xl mx-auto flex items-center justify-between px-2">
                     <div>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-bold">সিলেক্টেড প্রশ্ন</span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-bold">{t('সিলেক্টেড প্রশ্ন', 'Selected questions')}</span>
                         <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
-                            {selectedQuestions.size} টি প্রশ্ন {isLiveExam && <span className="text-rose-500 ml-1 text-xs font-bold">🔴 Live Exam</span>}
+                            {t(`${selectedQuestions.size} টি প্রশ্ন`, `${selectedQuestions.size} questions`)} {isLiveExam && <span className="text-rose-500 ml-1 text-xs font-bold">🔴 Live Exam</span>}
                         </span>
                     </div>
 
@@ -693,12 +695,12 @@ function AdminCreateExamInner() {
                         {submitting ? (
                             <>
                                 <Loader2 size={16} className="animate-spin" />
-                                <span>সেভ হচ্ছে...</span>
+                                <span>{t('সেভ হচ্ছে...', 'Saving...')}</span>
                             </>
                         ) : (
                             <>
                                 <Send size={15} />
-                                <span>{isLiveExam ? 'লাইভ পরীক্ষা পাবলিশ করুন' : 'মডেল টেস্ট তৈরি করুন'}</span>
+                                <span>{isLiveExam ? t('লাইভ পরীক্ষা পাবলিশ করুন', 'Publish live exam') : t('মডেল টেস্ট তৈরি করুন', 'Create model test')}</span>
                             </>
                         )}
                     </button>

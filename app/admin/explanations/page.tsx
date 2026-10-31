@@ -6,6 +6,7 @@ import { ArrowLeft, Check, X, Pencil } from 'lucide-react';
 import AdminGate from '@/components/AdminGate';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 import { authFetch } from '@/lib/authFetch';
+import { useLang } from '@/lib/i18n';
 
 type Draft = {
     question_id: string;
@@ -24,6 +25,7 @@ const LETTERS = ['a', 'b', 'c', 'd'] as const;
 
 // AI এর বানানো ব্যাখ্যা এখানে অনুমোদন না পেলে মূল প্রশ্নে যোগ হয় না
 function ExplanationsInner() {
+    const { t } = useLang();
     const [items, setItems] = useState<Draft[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ function ExplanationsInner() {
             if (data.success) {
                 setItems(data.items);
                 setTotal(data.total);
-            } else setError(data.error || 'লোড করা যায়নি');
+            } else setError(data.error || t('লোড করা যায়নি', 'Could not load'));
         } finally {
             setLoading(false);
         }
@@ -56,7 +58,7 @@ function ExplanationsInner() {
                 body: JSON.stringify({ questionId: id, action, text }),
             });
             const data = await res.json();
-            if (!data.success) return setError(data.error || 'সমস্যা হয়েছে');
+            if (!data.success) return setError(data.error || t('সমস্যা হয়েছে', 'Something went wrong'));
             setItems((prev) => prev.filter((x) => x.question_id !== id));
             setTotal((t) => Math.max(0, t - 1));
             setEditing((prev) => { const n = { ...prev }; delete n[id]; return n; });
@@ -72,17 +74,17 @@ function ExplanationsInner() {
                     <ArrowLeft size={16} />
                 </Link>
                 <div>
-                    <h1 className="text-lg font-black">AI ব্যাখ্যা অনুমোদন ✨</h1>
-                    <span className="text-xs text-slate-400">অপেক্ষায়: {total} টি · অনুমোদন দিলে সাইট আর বট দুই জায়গাতেই যোগ হবে</span>
+                    <h1 className="text-lg font-black">{t('AI ব্যাখ্যা অনুমোদন', 'Approve AI explanations')} ✨</h1>
+                    <span className="text-xs text-slate-400">{t(`অপেক্ষায়: ${total} টি · অনুমোদন দিলে সাইট আর বট দুই জায়গাতেই যোগ হবে`, `Pending: ${total} · approved ones go to both the site and the bot`)}</span>
                 </div>
             </header>
 
             <main className="max-w-4xl mx-auto space-y-4">
                 {error && <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-900 text-rose-300 text-xs">{error}</div>}
                 {loading ? (
-                    <div className="text-center py-20 text-slate-500 text-sm">লোড হচ্ছে...</div>
+                    <div className="text-center py-20 text-slate-500 text-sm">{t('লোড হচ্ছে...', 'Loading...')}</div>
                 ) : items.length === 0 ? (
-                    <div className="text-center py-20 text-slate-500 text-sm">অনুমোদনের অপেক্ষায় কোনো ব্যাখ্যা নেই।</div>
+                    <div className="text-center py-20 text-slate-500 text-sm">{t('অনুমোদনের অপেক্ষায় কোনো ব্যাখ্যা নেই।', 'No explanations waiting for approval.')}</div>
                 ) : (
                     items.map((d) => {
                         const isEditing = d.question_id in editing;
@@ -115,17 +117,17 @@ function ExplanationsInner() {
                                 <div className="flex gap-2 flex-wrap">
                                     <button disabled={busy === d.question_id} onClick={() => review(d.question_id, 'approve')}
                                         className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-600/40 font-semibold flex items-center gap-1 disabled:opacity-50">
-                                        <Check size={14} /> {isEditing ? 'বদলে অনুমোদন' : 'অনুমোদন'}
+                                        <Check size={14} /> {isEditing ? t('বদলে অনুমোদন', 'Save & approve') : t('অনুমোদন', 'Approve')}
                                     </button>
                                     {!isEditing && (
                                         <button onClick={() => setEditing((p) => ({ ...p, [d.question_id]: d.text }))}
                                             className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 font-semibold flex items-center gap-1">
-                                            <Pencil size={14} /> বদলাও
+                                            <Pencil size={14} /> {t('বদলাও', 'Edit')}
                                         </button>
                                     )}
                                     <button disabled={busy === d.question_id} onClick={() => review(d.question_id, 'reject')}
                                         className="text-xs px-3 py-1.5 rounded-lg bg-rose-600/15 text-rose-300 border border-rose-700/40 font-semibold flex items-center gap-1 disabled:opacity-50">
-                                        <X size={14} /> বাতিল
+                                        <X size={14} /> {t('বাতিল', 'Reject')}
                                     </button>
                                 </div>
                             </div>
