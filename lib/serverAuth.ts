@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
+import { hasAdminSession } from '@/lib/adminAuth';
 import { COURSE_COOKIE, resolvePlatform, type Platform } from '@/lib/platform';
 import { ensureUser } from '@/lib/siteData';
 
 // ADMIN_EMAILS: koma diye alada kora email, hosting er environment e bosano
-const adminEmails = () =>
+export const adminEmails = () =>
     (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 export const SESSION_COOKIE = '__session';   // admcq.com এর লগইন বসায় (.admcq.com), চার subdomain ই পড়ে
@@ -45,8 +46,10 @@ export async function requireUser(req: NextRequest): Promise<SignedInUser | Next
     return user;
 }
 
-/** Admin না হলে 401/403 response ferot dey, hole user. */
+/** Admin না হলে 401/403 response ferot dey, hole user.
+ *  দুইভাবে admin: আলাদা admin পাসওয়ার্ডের cookie (ছাত্রের লগইন লাগে না), অথবা ADMIN_EMAILS এর অ্যাকাউন্টে লগইন। */
 export async function requireAdmin(req: NextRequest): Promise<SignedInUser | NextResponse> {
+    if (await hasAdminSession(req)) return { uid: 'admin', email: adminEmails()[0] || 'admin', name: 'Admin' };
     const user = await getUser(req);
     if (!user) return fail('লগইন করুন', 401);
     if (!user.email || !adminEmails().includes(user.email)) return fail('অনুমতি নেই', 403);
