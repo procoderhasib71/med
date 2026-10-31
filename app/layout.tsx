@@ -5,6 +5,7 @@ import { PLATFORMS, isClassroomHost } from '@/lib/platform';
 import { currentPlatform } from '@/lib/currentPlatform';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import CourseProvider from '@/components/CourseProvider';
+import AppShell from '@/components/AppShell';
 
 export const viewport: Viewport = {
   themeColor: '#059669',
@@ -61,7 +62,7 @@ export default async function RootLayout({
       </head>
       <body className="bg-slate-50 dark:bg-[#0B1120] min-h-screen antialiased">
         <ThemeProvider>
-          <CourseProvider classroom={classroom}>{children}</CourseProvider>
+          <CourseProvider classroom={classroom}><AppShell>{children}</AppShell></CourseProvider>
         </ThemeProvider>
       </body>
     </html>

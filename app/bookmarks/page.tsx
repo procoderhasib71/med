@@ -125,7 +125,7 @@ export default function BookmarksPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans pb-20">
             {/* Top Navigation */}
-            <nav className="sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md">
+            <nav className="relative border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md">
                 <div className="mx-auto max-w-4xl px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button

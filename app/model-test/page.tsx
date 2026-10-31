@@ -219,7 +219,7 @@ export default function ModelTestPortalPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans pb-20">
             {/* Header */}
-            <header className="sticky top-0 z-40 border-b border-black/[0.05] dark:border-white/[0.06] bg-white/85 dark:bg-[#0B1120]/85 backdrop-blur-md">
+            <header className="relative border-b border-black/[0.05] dark:border-white/[0.06] bg-white/85 dark:bg-[#0B1120]/85 backdrop-blur-md">
                 <div className="mx-auto max-w-2xl px-4 h-14 flex items-center justify-between">
                     <button
                         onClick={() => router.push('/')}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BadgeCheck, CalendarDays, Check, KeyRound, LogOut, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
+import { BadgeCheck, CalendarDays, Check, KeyRound, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
 import { ACCENT, COURSES, type CourseId } from '@/lib/courses';
 import { bn, initials, pct, showDate, useAccount } from '@/lib/useAccount';
 import CourseIcon from '@/components/CourseIcon';
@@ -41,18 +41,6 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-800 dark:text-slate-100">
-            <header className="border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md sticky top-0 z-40">
-                <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-                    {mine.length > 0 ? (
-                        <Link href="/" className="flex items-center gap-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600"><ArrowLeft size={17} /> ক্লাসরুম</Link>
-                    ) : (
-                        <span className="font-extrabold text-lg">Ad<span className="text-emerald-500">MCQ</span></span>
-                    )}
-                    <button onClick={acc.logout} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors">
-                        <LogOut size={16} /> লগআউট
-                    </button>
-                </div>
-            </header>
 
             <main className="max-w-5xl mx-auto px-4 py-6 sm:py-10 space-y-6">
                 {/* অ্যাকাউন্টের সারাংশ */}

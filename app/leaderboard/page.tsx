@@ -142,7 +142,7 @@ export default function LeaderboardPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070B14] text-slate-900 dark:text-slate-100 font-sans pb-28">
             {/* Header */}
-            <header className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#070B14]/85 backdrop-blur-md">
+            <header className="relative border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#070B14]/85 backdrop-blur-md">
                 <div className="mx-auto max-w-2xl px-4 h-14 flex items-center justify-between">
                     <button
                         onClick={() => router.back()}
@@ -251,7 +251,7 @@ export default function LeaderboardPage() {
 
             {/* Sticky Current User Rank Bar */}
             {myRankData && (
-                <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
+                <div className="fixed bottom-[60px] md:bottom-0 left-0 right-0 z-30 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
                     <div className="mx-auto max-w-2xl px-4 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">

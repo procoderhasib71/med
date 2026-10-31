@@ -5,9 +5,6 @@ import BrandLoader from '@/components/BrandLoader';
 import {
     ChevronDown,
     Loader2,
-    Moon,
-    Sun,
-    ArrowLeft,
     Bookmark,
     Lightbulb,
     CheckCircle2,
@@ -20,7 +17,6 @@ import {
     Search
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useTheme } from '@/hooks/useTheme';
 import { fetchFilteredQuestions, Question } from './actions';
 import { getMe, getSolved, reportQuestion, setBookmark, syncAnswers } from '@/lib/siteApi';
 import { onAuthStateChanged } from '@/lib/session';
@@ -306,7 +302,6 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 /* ------------------------------------------------------------------ */
 
 function QBankInner() {
-    const { isDarkMode, toggleTheme } = useTheme();
     const searchParams = useSearchParams();
     const router = useRouter();
     const urlSubject = searchParams.get('subject');
@@ -835,26 +830,6 @@ function QBankInner() {
 
     return (
         <div className="min-h-screen bg-slate-100/60 dark:bg-[#0B1120] font-sans text-slate-900 dark:text-slate-50 transition-colors duration-300 pb-20">
-            <nav className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-[#0B1120]/85 backdrop-blur-md">
-                <div className="mx-auto max-w-4xl px-3 sm:px-6">
-                    <div className="flex h-13 sm:h-16 items-center justify-between">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            <button onClick={() => router.back()} className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                                <ArrowLeft size={15} />
-                            </button>
-                            <span className="text-sm sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-                                Ad<span className="text-emerald-600 dark:text-emerald-400">MCQ</span> QBank
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button onClick={toggleTheme} className="p-1.5 sm:p-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </nav>
 
             <main className="max-w-4xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-6">
                 <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4 px-0.5">
