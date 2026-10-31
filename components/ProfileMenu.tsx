@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import CourseAvatar from '@/components/CourseAvatar';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { BookOpenCheck, ChevronRight, KeyRound, LayoutDashboard, LogOut, Send, UserRound, X } from 'lucide-react';
-import { bn, initials, pct, useAccount } from '@/lib/useAccount';
+import { bn, pct, useAccount } from '@/lib/useAccount';
 import { BotPanel, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
 
 // হেডারের প্রোফাইল বোতাম: ক্লিকে ডান দিক থেকে মেনু, মেনুর আইকনে ক্লিকে popup; লগইন না থাকলে লগইন বোতাম
@@ -54,8 +55,8 @@ export default function ProfileMenu() {
     return (
         <>
             <button onClick={() => setOpen(true)} aria-label="প্রোফাইল মেনু"
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-[13px] font-black text-white shadow-md shadow-emerald-500/20 hover:scale-105 transition-transform cursor-pointer">
-                {initials(p.name || 'A')}
+                className="rounded-xl ring-2 ring-white/70 dark:ring-slate-700 shadow-md hover:scale-105 transition-transform cursor-pointer">
+                <CourseAvatar className="w-9 h-9" />
             </button>
 
             {/* ডান দিক থেকে আসা মেনু; হেডারের backdrop-blur এর বাইরে body তে রাখা, নইলে fixed ঠিকমতো কাজ করে না */}
@@ -65,7 +66,7 @@ export default function ProfileMenu() {
                     className={`absolute right-0 top-0 h-full w-[19rem] max-w-[85vw] bg-white dark:bg-[#0b111d] border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}>
                     <div className="p-5 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-start justify-between">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-lg font-black text-white">{initials(p.name || 'A')}</div>
+                            <CourseAvatar className="w-12 h-12" rounded="rounded-2xl" />
                             <button onClick={() => setOpen(false)} aria-label="বন্ধ করুন" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"><X size={18} /></button>
                         </div>
                         <h2 className="mt-3 font-black text-lg truncate text-slate-900 dark:text-white">{p.name || 'আপনার প্রোফাইল'}</h2>

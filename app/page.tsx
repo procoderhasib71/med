@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Bookmark, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw, Sparkles, Target, Trophy } from 'lucide-react';
+import { ArrowRight, BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw } from 'lucide-react';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, session } from '@/lib/session';
-import { ACCENT, COURSES } from '@/lib/courses';
+import { COURSES } from '@/lib/courses';
 import { useCourse } from '@/components/CourseProvider';
-import CourseIcon from '@/components/CourseIcon';
+import CourseAvatar from '@/components/CourseAvatar';
 
 // ক্লাসরুমের হোম: স্বাগতম আর নিজের হিসাব, দ্রুত কাজ, চালু কোর্সের বিষয় (DB থেকে), সাম্প্রতিক মডেল টেস্ট।
 // মোবাইলে সব এক কলামে; কম্পিউটারে চওড়া, দুই কলামে।
@@ -45,6 +45,7 @@ export default function ClassroomHome() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [subjects, setSubjects] = useState<Subject[] | null>(null);
     const [tests, setTests] = useState<Test[] | null>(null);
+    const [testsOpen, setTestsOpen] = useState(false);
 
     useEffect(() => {
         const stop = onAuthStateChanged(session, async (user) => {
@@ -74,41 +75,34 @@ export default function ClassroomHome() {
         <div className="min-h-screen bg-[#F6F8FB] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100">
             <main className="mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
 
-                {/* স্বাগতম + নিজের হিসাব */}
-                <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-blue-700 text-white p-5 sm:p-8">
-                    <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-2xl" />
-                    <div className="absolute right-24 -bottom-24 w-56 h-56 rounded-full bg-blue-400/20 blur-3xl" />
-                    <div className="relative grid lg:grid-cols-[1fr_auto] gap-6 lg:items-center">
-                        <div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/15 text-xs font-bold">
-                                <CourseIcon id={course.id} className="w-3.5 h-3.5" /> {course.name}
-                            </span>
-                            <h1 className="mt-3 text-2xl sm:text-3xl font-black leading-tight">
-                                স্বাগতম{stats?.name ? `, ${stats.name}` : ''} 👋
-                            </h1>
-                            <p className="mt-1.5 text-sm sm:text-base text-white/80 max-w-xl">আজকের প্রস্তুতি শুরু করুন। প্রতিটা উত্তর আপনার অ্যানালাইসিস আর র‍্যাংকে যোগ হয়।</p>
-                            <div className="mt-5 flex flex-wrap gap-2.5">
-                                <Link href="/qbank" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-white text-emerald-700 text-sm font-black hover:bg-emerald-50 transition-colors">
-                                    <Play size={15} fill="currentColor" /> প্র্যাকটিস শুরু করুন
-                                </Link>
-                                <Link href="/model-test" className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-bold transition-colors">
-                                    মডেল টেস্ট দিন <ArrowRight size={15} />
-                                </Link>
+                {/* স্বাগতম + নিজের হিসাব (ছোট, এক নজরে) */}
+                <section className={`${card} p-4 sm:p-5 flex flex-col md:flex-row md:items-center gap-4`}>
+                    <div className="flex items-center gap-3 min-w-0 md:flex-1">
+                        <CourseAvatar className="w-11 h-11" />
+                        <div className="min-w-0">
+                            <h1 className="text-base sm:text-lg font-black truncate">স্বাগতম{stats?.name ? `, ${stats.name}` : ''}</h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{course.name} • আজকের প্রস্তুতি শুরু করুন</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 divide-x divide-slate-200 dark:divide-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/60 py-2 md:w-[19rem]">
+                        {[
+                            { value: bn(stats?.attempted ?? 0), label: 'মোট উত্তর' },
+                            { value: `${bn(accuracy)}%`, label: 'সঠিকের হার' },
+                            { value: bn(stats?.score ?? 0), label: 'স্কোর' },
+                        ].map((x) => (
+                            <div key={x.label} className="text-center px-2">
+                                <div className="text-base font-black">{x.value}</div>
+                                <div className="text-[10.5px] text-slate-500 dark:text-slate-400">{x.label}</div>
                             </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2.5 sm:gap-3 lg:w-[22rem]">
-                            {[
-                                { icon: Target, value: bn(stats?.attempted ?? 0), label: 'মোট উত্তর' },
-                                { icon: Sparkles, value: `${bn(accuracy)}%`, label: 'সঠিকের হার' },
-                                { icon: Trophy, value: bn(stats?.score ?? 0), label: 'স্কোর' },
-                            ].map((s) => (
-                                <div key={s.label} className="rounded-2xl bg-white/12 backdrop-blur-sm border border-white/15 p-3 sm:p-4">
-                                    <s.icon size={16} className="text-white/70" />
-                                    <div className="mt-2 text-lg sm:text-2xl font-black">{s.value}</div>
-                                    <div className="text-[11px] sm:text-xs text-white/75">{s.label}</div>
-                                </div>
-                            ))}
-                        </div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-2 md:flex gap-2 shrink-0">
+                        <Link href="/qbank" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors">
+                            <Play size={13} fill="currentColor" /> প্র্যাকটিস
+                        </Link>
+                        <Link href="/model-test" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-sm font-bold transition-colors">
+                            মডেল টেস্ট <ArrowRight size={14} />
+                        </Link>
                     </div>
                 </section>
 
@@ -159,15 +153,27 @@ export default function ClassroomHome() {
 
                     {/* সাম্প্রতিক মডেল টেস্ট + শীঘ্রই আসছে */}
                     <aside className="space-y-6">
-                        <section>
-                            <SectionTitle icon={ClipboardList} title="মডেল টেস্ট" link={{ href: '/model-test', text: 'সবগুলো' }} />
-                            <div className="space-y-3">
+                        {/* মডেল টেস্ট: বোতামের মতো, চাপলে তালিকা খোলে/বন্ধ হয় */}
+                        <section className={`${card} overflow-hidden`}>
+                            <button onClick={() => setTestsOpen((o) => !o)} aria-expanded={testsOpen}
+                                className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer">
+                                <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0"><ClipboardList size={19} /></span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block font-black">মডেল টেস্ট</span>
+                                    <span className="block text-xs text-slate-500 dark:text-slate-400">
+                                        {tests === null ? 'লোড হচ্ছে...' : tests.length ? `${bn(tests.length)}টা সাম্প্রতিক টেস্ট` : 'এখনো কোনো টেস্ট নেই'}
+                                    </span>
+                                </span>
+                                <ChevronDown size={18} className={`text-slate-400 shrink-0 transition-transform duration-200 ${testsOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {testsOpen && (
+                            <div className="space-y-3 px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3 animate-[popin_.15s_ease-out]">
                                 {tests === null ? (
-                                    Array.from({ length: 3 }).map((_, i) => <div key={i} className={`${card} h-[84px] animate-pulse`} />)
+                                    Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl bg-slate-100 dark:bg-slate-800 h-[76px] animate-pulse" />)
                                 ) : tests.length === 0 ? (
-                                    <div className={`${card} p-6 text-center text-sm text-slate-500`}>এখনো কোনো মডেল টেস্ট নেই।</div>
+                                    <div className="p-4 text-center text-sm text-slate-500">এখনো কোনো মডেল টেস্ট নেই।</div>
                                 ) : tests.map((t) => (
-                                    <div key={t.id} className={`${card} p-4 flex items-center gap-3`}>
+                                    <div key={t.id} className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 flex items-center gap-3">
                                         <div className="min-w-0 flex-1">
                                             <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">{t.subject}</span>
                                             <h3 className="mt-1.5 text-sm font-extrabold truncate">{t.title}</h3>
@@ -179,7 +185,11 @@ export default function ClassroomHome() {
                                         </Link>
                                     </div>
                                 ))}
+                                <Link href="/model-test" className="flex items-center justify-center gap-1 pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+                                    সব মডেল টেস্ট দেখুন <ChevronRight size={14} />
+                                </Link>
                             </div>
+                            )}
                         </section>
 
                         <section className={`${card} p-5`}>

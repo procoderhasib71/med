@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import CourseAvatar from '@/components/CourseAvatar';
 import Link from 'next/link';
 import { BadgeCheck, CalendarDays, Check, KeyRound, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
 import { ACCENT, COURSES, type CourseId } from '@/lib/courses';
-import { bn, initials, pct, showDate, useAccount } from '@/lib/useAccount';
+import { bn, pct, showDate, useAccount } from '@/lib/useAccount';
 import CourseIcon from '@/components/CourseIcon';
 import BrandLoader from '@/components/BrandLoader';
 import { BotPanel, card, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
@@ -46,9 +47,7 @@ export default function ProfilePage() {
                 {/* অ্যাকাউন্টের সারাংশ */}
                 <section className={`${card} p-5 sm:p-6`}>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center text-2xl font-black text-white shrink-0">
-                            {initials(p.name || 'A')}
-                        </div>
+                        <CourseAvatar className="w-16 h-16" rounded="rounded-2xl" />
                         <div className="min-w-0 flex-1">
                             <h1 className="text-xl sm:text-2xl font-black truncate">{p.name || 'আপনার প্রোফাইল'}</h1>
                             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
