@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setCourseCookie } from '@/lib/courseCookie';
-import { ACCOUNT_URL, COURSE_COOKIE, isClassroomHost, isPlatform } from '@/lib/platform';
+import { COURSE_COOKIE, isClassroomHost, isPlatform } from '@/lib/platform';
 import { fail, getUser, platformOf } from '@/lib/serverAuth';
 import { getEnrollments } from '@/lib/siteData';
 
@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
         chosen: isPlatform(chosen) ? chosen : null,
         loggedIn: Boolean(user),
         enrolled: user ? await getEnrollments(user.uid) : [],
-        accountUrl: ACCOUNT_URL,
     });
 }
 

@@ -7,12 +7,11 @@ import {
     Stethoscope, Activity, RefreshCw, Bookmark, BookOpen,
     Radio, Clock, HelpCircle, Users, Zap, FileText,
     ArrowDown, Play, Moon, Sun, User, Trophy, BarChart3,
-    Timer, X, LogOut, Mail, ChevronRight, AlertCircle, Loader2
+    Timer, ChevronRight, AlertCircle, Loader2
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { getMe, listModelTests } from '@/lib/siteApi';
-import { onAuthStateChanged, signOut } from '@/lib/session';
-import TelegramLinkButton from '@/components/TelegramLinkButton';
+import { onAuthStateChanged } from '@/lib/session';
 import CourseSwitcher from '@/components/CourseSwitcher';
 import { session as auth } from '@/lib/session';
 
@@ -31,7 +30,6 @@ export default function MedicalPortal() {
     const { isDarkMode, toggleTheme } = useTheme();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [totalStudySeconds, setTotalStudySeconds] = useState(0);
     const [totalScore, setTotalScore] = useState(0);
     const [mistakeCount, setMistakeCount] = useState(0);
@@ -129,36 +127,11 @@ export default function MedicalPortal() {
         return () => unsubscribeAuth();
     }, []);
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth).catch(() => null);
-            localStorage.removeItem('user_portal_stats');
-            const isLive = window.location.hostname.includes('adqlive.com');
-            const domainStr = isLive ? 'domain=.adqlive.com;' : 'domain=localhost;';
-            document.cookie = `auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${domainStr}`;
-            setCurrentUser(null);
-            setIsProfileOpen(false);
-            window.location.reload();
-        } catch (error) {
-            console.error('Logout error:', error);
-        }
-    };
-
     const handleFeatureClick = (e: React.MouseEvent) => {
         if (!currentUser) {
             e.preventDefault();
             router.push('/login');
         }
-    };
-
-    const formatTotalStudy = (seconds: number) => {
-        if (seconds === 0) return '০ সেকেন্ড';
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        if (h > 0) return `${h}ঘ ${m}মি`;
-        if (m > 0) return `${m}মি ${s}সে`;
-        return `${s} সেকেন্ড`;
     };
 
     const medicalSubjects = [
@@ -187,57 +160,6 @@ export default function MedicalPortal() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans transition-colors relative selection:bg-emerald-500 selection:text-white">
-
-            {/* Profile Modal Overlay */}
-            {isProfileOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4"
-                    onClick={() => setIsProfileOpen(false)}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-[24px] bg-white dark:bg-slate-900 p-5 shadow-2xl border border-slate-100 dark:border-slate-800"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
-                            <div className="truncate pr-2">
-                                <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
-                                    {currentUser?.displayName || currentUser?.name || 'Doctor Candidate'}
-                                </h3>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                    <Mail size={13} />
-                                    <span className="truncate">{currentUser?.email || 'N/A'}</span>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsProfileOpen(false)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 mb-4">
-                            <div className="bg-[#F8FAFC] dark:bg-[#0B1120] p-3 rounded-xl text-center">
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1">মোট স্টাডি</div>
-                                <div className="font-extrabold text-sm text-[#059669]">{formatTotalStudy(totalStudySeconds)}</div>
-                            </div>
-                            <div className="bg-[#F8FAFC] dark:bg-[#0B1120] p-3 rounded-xl text-center">
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1">মোট স্কোর</div>
-                                <div className="font-extrabold text-sm text-[#EA580C]">{totalScore}</div>
-                            </div>
-                        </div>
-
-                        <TelegramLinkButton />
-
-                        <button
-                            onClick={handleLogout}
-                            className="w-full py-3 rounded-xl bg-[#FFF1F2] dark:bg-rose-950/30 text-[#E11D48] dark:text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors cursor-pointer"
-                        >
-                            <LogOut size={16} /> লগআউট করুন
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* Top Header */}
             <header className="sticky top-0 z-40 w-full border-b border-black/[0.04] dark:border-white/[0.06] bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md">
@@ -584,13 +506,7 @@ export default function MedicalPortal() {
                     </Link>
 
                     <button
-                        onClick={() => {
-                            if (currentUser) {
-                                setIsProfileOpen(true);
-                            } else {
-                                router.push('/login');
-                            }
-                        }}
+                        onClick={() => router.push(currentUser ? '/profile' : '/login')}
                         className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-colors cursor-pointer ${currentUser ? 'text-[#059669]' : 'text-[#64748B] dark:text-slate-400'
                             }`}
                     >

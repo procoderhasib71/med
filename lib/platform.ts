@@ -10,9 +10,6 @@ export const PLATFORMS = {
 export type Platform = keyof typeof PLATFORMS;
 
 export const ROOT_DOMAIN = 'admcq.com';
-export const ACCOUNT_URL = `https://${ROOT_DOMAIN}`;
-// admcq.com এর লগইন চালু হলে hosting এর env এ NEXT_PUBLIC_ACCOUNT_LOGIN=1 দাও; তার আগে প্রতিটা সাইটে নিজের লগইন
-export const CENTRAL_LOGIN = process.env.NEXT_PUBLIC_ACCOUNT_LOGIN === '1';
 
 // app.admcq.com: একটাই ক্লাসরুম, ছাত্র যে কোর্স বাছাই করেছে (cookie) সেই কোর্সের সব দেখায়
 export const COURSE_COOKIE = 'admcq_course';
@@ -46,9 +43,6 @@ export function isClassroomHost(host: string | null | undefined) {
     const h = String(host || '').toLowerCase().split(':')[0];
     return h === `app.${ROOT_DOMAIN}` || h === 'localhost' || h === '127.0.0.1';
 }
-
-/** admcq.com এর কোনো subdomain এ চলছি কিনা (তখন লগইন আর প্রোফাইল admcq.com এ) */
-export const onAdmcqDomain = (host: string) => host.toLowerCase().split(':')[0].endsWith(ROOT_DOMAIN);
 
 export function clientPlatform(): Platform {
     if (typeof window === 'undefined') return resolvePlatform('');

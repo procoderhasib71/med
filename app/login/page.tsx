@@ -1,48 +1,97 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   ConfirmationResult,
+  EmailAuthProvider,
   GoogleAuthProvider,
   RecaptchaVerifier,
   getRedirectResult,
+  linkWithCredential,
+  signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithRedirect,
+  updatePassword,
   updateProfile,
 } from 'firebase/auth';
+import { ArrowRight, KeyRound, Loader2, Lock, Phone, User as UserIcon } from 'lucide-react';
+import { auth, phoneEmail, toE164 } from '@/lib/firebase';
 import { getMe, setMyName } from '@/lib/siteApi';
-import { ACCOUNT_URL, CENTRAL_LOGIN, onAdmcqDomain } from '@/lib/platform';
-import { auth } from '@/lib/firebase';
-import { Loader2, Phone, KeyRound, User, Stethoscope, ArrowRight, Sun, Moon, Home } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import Link from 'next/link';
+
+// স্টুডেন্ট লগইন (app.admcq.com): ফোন নম্বর + পাসওয়ার্ড, OTP ছাড়া।
+// নতুন অ্যাকাউন্ট আর পাসওয়ার্ড ভুলে গেলে: ফোনে একবার OTP, তারপর নিজের পাসওয়ার্ড।
+// আগে শুধু OTP দিয়ে ঢুকতেন এমন ছাত্র "রেজিস্টার" দিয়ে একবার পাসওয়ার্ড বানালেই হয়, পুরনো ডাটা থাকে।
+
+type Mode = 'login' | 'register' | 'forgot';
+type Step = 'phone' | 'code' | 'password';
+
+const BN = (s: string) => s.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x)));
+
+function authError(err: unknown) {
+  const c = String((err as { code?: string })?.code || '');
+  const msg: Record<string, string> = {
+    'auth/invalid-credential': 'ফোন নম্বর বা পাসওয়ার্ড ভুল। আগে কখনো পাসওয়ার্ড না বানিয়ে থাকলে "রেজিস্টার করুন" দিন।',
+    'auth/wrong-password': 'ফোন নম্বর বা পাসওয়ার্ড ভুল।',
+    'auth/user-not-found': 'এই নম্বরে অ্যাকাউন্ট নেই। "রেজিস্টার করুন" দিন।',
+    'auth/invalid-phone-number': 'ফোন নম্বরটা ঠিক নেই।',
+    'auth/invalid-verification-code': 'কোডটা ভুল হয়েছে।',
+    'auth/code-expired': 'কোডের মেয়াদ শেষ। নতুন কোড নিন।',
+    'auth/too-many-requests': 'অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+    'auth/quota-exceeded': 'আজকের SMS এর সীমা শেষ। পরে চেষ্টা করুন।',
+    'auth/weak-password': 'পাসওয়ার্ড অন্তত ৬ অক্ষরের দিন।',
+    'auth/requires-recent-login': 'আবার OTP দিয়ে যাচাই করুন।',
+    'auth/popup-closed-by-user': 'Google এর জানালাটা বন্ধ হয়ে গেছে।',
+    'auth/unauthorized-domain': 'এই ঠিকানা থেকে লগইন অনুমোদিত নয়।',
+    'auth/network-request-failed': 'ইন্টারনেট সংযোগে সমস্যা।',
+    'auth/operation-not-allowed': 'এই লগইন পদ্ধতি এখনো চালু হয়নি।',
+  };
+  console.error('Auth error:', err);
+  return `${msg[c] || 'কাজটা করা যায়নি। আবার চেষ্টা করুন।'}${c ? ` (${c})` : ''}`;
+}
+
+const input = 'w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm';
+const button = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-70 text-sm cursor-pointer';
+const Field = ({ icon: Icon, label, ...props }: { icon: typeof Phone; label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
+  <div>
+    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">{label}</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400"><Icon size={18} /></div>
+      <input {...props} className={input} required />
+    </div>
+  </div>
+);
+const Submit = ({ text, loading }: { text: string; loading: boolean }) => (
+  <button type="submit" disabled={loading} className={button}>
+    {loading ? <Loader2 size={18} className="animate-spin" /> : <>{text} <ArrowRight size={16} /></>}
+  </button>
+);
+
+/** ?next=/course/med এর মতো; শুধু এই সাইটের পেজ */
+function nextParam() {
+  const raw = new URLSearchParams(window.location.search).get('next') || '';
+  return raw.startsWith('/') && !raw.startsWith('//') ? raw : '';
+}
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
+  const [mode, setMode] = useState<Mode>('login');
+  const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [password2, setPassword2] = useState('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [step, setStep] = useState<'phone' | 'code' | 'name'>('phone');
+  const [needName, setNeedName] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmation = useRef<ConfirmationResult | null>(null);
+  const recaptcha = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
-    // admcq.com এর subdomain এ লগইন হয় admcq.com এ (একবার লগইনে চার সাইট), লগইন শেষে এখানে ফিরে আসে
-    if (CENTRAL_LOGIN && onAdmcqDomain(window.location.host)) {
-      window.location.replace(`${ACCOUNT_URL}/login?next=${encodeURIComponent(window.location.origin + nextPath())}`);
-      return;
-    }
-    setMounted(true);
-    // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ হয়
-    getRedirectResult(auth).then((r) => { if (r) finishLogin(); }).catch((err) => setError(authError(err)));
+    // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ
+    getRedirectResult(auth).then((r) => { if (r) finish(false); }).catch((err) => setError(authError(err)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -52,300 +101,183 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
-
-  const setAuthCookie = () => {
-    const isLive = typeof window !== 'undefined' && window.location.hostname.includes('adqlive.com');
-    const domainStr = isLive ? 'domain=.adqlive.com;' : '';
-    document.cookie = `auth-token=true; path=/; max-age=2592000; SameSite=Lax; ${domainStr}`;
-  };
-
-  // ব্যবহারকারীকে বোঝার মতো কারণ, শেষে Firebase এর কোড (সমস্যা খুঁজতে কাজে লাগে)
-  const authError = (err: any) => {
-    const c = String(err?.code || '');
-    const msg: Record<string, string> = {
-      'auth/invalid-phone-number': 'ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন।',
-      'auth/invalid-verification-code': 'কোডটা ভুল হয়েছে। আবার দেখে লিখুন।',
-      'auth/code-expired': 'কোডের মেয়াদ শেষ। নতুন কোড নিন।',
-      'auth/too-many-requests': 'অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
-      'auth/quota-exceeded': 'আজকের SMS এর সীমা শেষ। পরে চেষ্টা করুন বা Google দিয়ে লগইন করুন।',
-      'auth/operation-not-allowed': 'এই লগইন পদ্ধতি এখনো চালু হয়নি।',
-      'auth/popup-closed-by-user': 'Google এর জানালাটা বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।',
-      'auth/unauthorized-domain': 'এই ঠিকানা থেকে লগইন অনুমোদিত নয়।',
-      'auth/network-request-failed': 'ইন্টারনেট সংযোগে সমস্যা। আবার চেষ্টা করুন।',
-      'auth/captcha-check-failed': 'যাচাই ব্যর্থ হয়েছে। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।',
-    };
-    console.error('Login error:', err);
-    return `${msg[c] || 'লগইন করা যায়নি। আবার চেষ্টা করুন।'}${c ? ` (${c})` : ''}`;
-  };
-
-  // লগইনের পরে কোথায় যাবে (?next=/course/med এর মতো); শুধু এই সাইটের পেজ
-  const nextPath = () => {
-    const raw = new URLSearchParams(window.location.search).get('next') || '/';
-    return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
-  };
-
-  const finishLogin = async () => {
-    // প্রথমবার এলে সার্ভার নিজেই Turso তে প্রোফাইল বানায়; নাম না থাকলে জিজ্ঞেস করি
-    const me = await getMe().catch(() => null);
-    setAuthCookie();
-    if (me && !me.name.trim()) {
-      setStep('name');
-      return;
-    }
-    router.push(nextPath());
-  };
-
-  // '01712345678', '+8801712345678', বাংলা অঙ্ক সব চলে
-  const toE164 = (raw: string) => {
-    const d = raw.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x))).replace(/\D/g, '');
-    const local = d.startsWith('880') ? d.slice(2) : d;
-    return /^01[3-9]\d{8}$/.test(local) ? `+88${local}` : '';
-  };
-
-  const sendCode = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setStep('phone');
     setError('');
-    const number = toE164(phone);
-    if (!number) return setError('ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন, যেমন 01712345678');
+    setCode('');
+    setPassword('');
+    setPassword2('');
+  };
+
+  // প্রথমবার এলে সার্ভার নিজেই প্রোফাইল বানায়; নতুন রেজিস্ট্রেশন হলে প্রোফাইলে (কোর্স নিতে), নইলে ক্লাসরুমে
+  const finish = async (registered: boolean, displayName = '') => {
+    await getMe();
+    if (displayName) await setMyName(displayName);
+    window.location.replace(nextParam() || (registered ? '/profile' : '/'));
+  };
+
+  const run = async (fn: () => Promise<void>) => {
+    setError('');
     setLoading(true);
     try {
-      recaptchaRef.current ||= new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-      confirmationRef.current = await signInWithPhoneNumber(auth, number, recaptchaRef.current);
+      await fn();
+    } catch (err) {
+      setError(err instanceof Error && !(err as { code?: string }).code ? err.message : authError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      const number = toE164(phone);
+      if (!number) throw new Error('ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন।');
+      await signInWithEmailAndPassword(auth, phoneEmail(number), password);
+      await finish(false);
+    });
+  };
+
+  const sendCode = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    run(async () => {
+      const number = toE164(phone);
+      if (!number) throw new Error('ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন।');
+      try {
+        recaptcha.current ||= new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+        confirmation.current = await signInWithPhoneNumber(auth, number, recaptcha.current);
+      } catch (err) {
+        recaptcha.current?.clear();
+        recaptcha.current = null;
+        throw err;
+      }
       setStep('code');
       setCode('');
       setCooldown(60);
-    } catch (err: any) {
-      recaptchaRef.current?.clear();
-      recaptchaRef.current = null;
-      setError(authError(err));
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
-  const verifyCode = async (e: React.FormEvent) => {
+  const verifyCode = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (!confirmationRef.current) return setStep('phone');
-    setLoading(true);
-    try {
-      await confirmationRef.current.confirm(code.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x))).trim());
-      await finishLogin();
-    } catch (err: any) {
-      setError(authError(err));
-    } finally {
-      setLoading(false);
-    }
+    run(async () => {
+      if (!confirmation.current) return setStep('phone');
+      const cred = await confirmation.current.confirm(BN(code).trim());
+      setNeedName(!cred.user.displayName);
+      setStep('password');
+    });
   };
 
-  const saveName = async (e: React.FormEvent) => {
+  // OTP এর পরে পাসওয়ার্ড: নতুন হলে ফোনের সাথে জুড়ে দিই, আগে থেকে থাকলে বদলাই
+  const savePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    const n = name.trim();
-    if (n.length < 2) return setError('আপনার নাম লিখুন');
-    setLoading(true);
-    try {
-      if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: n });
-      await setMyName(n);
-      router.push(nextPath());
-    } catch (err: any) {
-      setError(authError(err));
-    } finally {
-      setLoading(false);
-    }
+    run(async () => {
+      const user = auth.currentUser;
+      if (!user?.phoneNumber) return setStep('phone');
+      if (password.length < 6) throw new Error('পাসওয়ার্ড অন্তত ৬ অক্ষরের দিন।');
+      if (password !== password2) throw new Error('দুই জায়গার পাসওয়ার্ড মেলেনি।');
+      if (needName && name.trim().length < 2) throw new Error('আপনার নাম লিখুন।');
+      const hasPassword = user.providerData.some((p) => p.providerId === 'password');
+      if (hasPassword) await updatePassword(user, password);
+      else await linkWithCredential(user, EmailAuthProvider.credential(phoneEmail(user.phoneNumber), password));
+      if (needName) await updateProfile(user, { displayName: name.trim() });
+      await finish(mode === 'register', needName ? name.trim() : '');
+    });
   };
 
-  const handleGoogle = async () => {
-    setError('');
+  const google = () => run(async () => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      await finishLogin();
-    } catch (err: any) {
-      const c = String(err?.code || '');
-      // popup আটকে গেলে বা ব্রাউজার popup চালাতে না পারলে পুরো পাতা Google এ যায়, ফিরে এসে লগইন শেষ
-      if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment' || c === 'auth/web-storage-unsupported') {
-        await signInWithRedirect(auth, provider).catch((e2) => setError(authError(e2)));
-        return;
-      }
-      setError(authError(err));
+    } catch (err) {
+      const c = String((err as { code?: string })?.code || '');
+      if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment') return signInWithRedirect(auth, provider);
+      throw err;
     }
-  };
+    await finish(false);
+  });
+
+  const title = mode === 'login' ? 'স্টুডেন্ট লগইন' : mode === 'register' ? 'রেজিস্ট্রেশন' : 'পাসওয়ার্ড ভুলে গেছেন?';
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 bg-slate-50 dark:bg-[#0B1120] transition-colors duration-300 overflow-hidden font-sans">
-      <div className="absolute top-6 w-full px-6 flex justify-between items-center z-50 max-w-7xl mx-auto left-0 right-0">
-        <Link 
-          href="/" 
-          className="p-2.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-xs"
-        >
-          <Home size={18} />
-        </Link>
-        {mounted && (
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-xs focus:outline-none"
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        )}
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-800 dark:text-slate-100">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl p-7 sm:p-9">
+        <a href="https://admcq.com" className="flex items-center justify-center gap-2 mb-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-blue-500 flex items-center justify-center font-black text-black text-xl">A</div>
+          <span className="font-extrabold text-2xl">Ad<span className="text-emerald-500">MCQ</span></span>
+        </a>
+        <h1 className="text-center text-xl font-black mb-1">{title}</h1>
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400 mb-6">একটা অ্যাকাউন্টে মেডিকেল, ভার্সিটি ক, খ আর ইঞ্জিনিয়ারিং</p>
 
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/20 dark:bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-teal-500/20 dark:bg-teal-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+        {error && <div className="mb-5 p-3 rounded-2xl bg-rose-100 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-sm text-rose-600 dark:text-rose-400 text-center">{error}</div>}
 
-      <div className="w-full max-w-md relative z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-2xl p-8 sm:p-10 transition-colors duration-300">
-        <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/20 mb-4 transform hover:scale-105 transition-transform">
-            <Stethoscope size={32} className="text-white" />
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
-              ADQ<span className="text-emerald-600 dark:text-emerald-400">Live</span>
-            </span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-2">
-            স্বাগতম, ভবিষ্যৎ ডাক্তার! 🩺
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            আপনার মেডিকেল পোর্টালে লগইন করুন
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-3.5 rounded-2xl bg-rose-100 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-sm text-rose-600 dark:text-rose-400 font-medium text-center">
-            {error}
-          </div>
+        {mode === 'login' && (
+          <form onSubmit={login} className="space-y-4">
+            <Field icon={Phone} label="মোবাইল নম্বর" type="tel" inputMode="numeric" autoComplete="tel" placeholder="01712345678" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Field icon={Lock} label="পাসওয়ার্ড" type="password" autoComplete="current-password" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Submit loading={loading} text="লগইন" />
+            <button type="button" onClick={() => switchMode('forgot')} className="block mx-auto text-xs text-slate-500 hover:text-emerald-600 cursor-pointer">পাসওয়ার্ড ভুলে গেছি</button>
+            <p className="text-center text-sm text-slate-600 dark:text-slate-300 pt-1">
+              অ্যাকাউন্ট নেই? <button type="button" onClick={() => switchMode('register')} className="font-bold text-emerald-600 cursor-pointer">রেজিস্টার করুন</button>
+            </p>
+          </form>
         )}
 
-        {step === 'phone' && (
-        <form onSubmit={sendCode} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
-              ফোন নম্বর
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <Phone size={18} />
-              </div>
-              <input
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                placeholder="01712345678"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
-                required
-              />
+        {mode !== 'login' && step === 'phone' && (
+          <form onSubmit={sendCode} className="space-y-4">
+            <Field icon={Phone} label="মোবাইল নম্বর" type="tel" inputMode="numeric" autoComplete="tel" placeholder="01712345678" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Submit loading={loading} text="যাচাইয়ের কোড পাঠান" />
+            <p className="text-[11px] text-center text-slate-500">নম্বরে একবার ৬ অঙ্কের কোড SMS এ যাবে। পরে লগইনে আর কোড লাগবে না।</p>
+          </form>
+        )}
+
+        {mode !== 'login' && step === 'code' && (
+          <form onSubmit={verifyCode} className="space-y-4">
+            <Field icon={KeyRound} label="SMS এ আসা কোড" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+            <Submit loading={loading} text="যাচাই করুন" />
+            <div className="flex justify-between text-xs px-1 text-slate-500">
+              <button type="button" onClick={() => setStep('phone')} className="hover:text-emerald-600 cursor-pointer">নম্বর বদলান</button>
+              <button type="button" disabled={cooldown > 0 || loading} onClick={() => sendCode()} className="hover:text-emerald-600 disabled:opacity-50 cursor-pointer">
+                {cooldown > 0 ? `আবার কোড (${cooldown}s)` : 'আবার কোড পাঠান'}
+              </button>
             </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 disabled:opacity-70 text-sm active:scale-[0.98] cursor-pointer"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <>কোড পাঠান <ArrowRight size={16} /></>}
-          </button>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center">নম্বরে ৬ অঙ্কের একটা কোড SMS এ যাবে</p>
-        </form>
+          </form>
         )}
 
-        {step === 'code' && (
-        <form onSubmit={verifyCode} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
-              SMS এ আসা কোড
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <KeyRound size={18} />
-              </div>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
-                required
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 disabled:opacity-70 text-sm active:scale-[0.98] cursor-pointer"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <>লগইন করুন <ArrowRight size={16} /></>}
-          </button>
-          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
-            <button type="button" onClick={() => { setStep('phone'); setError(''); }} className="hover:text-emerald-600 cursor-pointer">
-              নম্বর বদলান
-            </button>
-            <button type="button" disabled={cooldown > 0 || loading} onClick={() => sendCode()} className="hover:text-emerald-600 disabled:opacity-50 cursor-pointer">
-              {cooldown > 0 ? `আবার কোড (${cooldown}s)` : 'আবার কোড পাঠান'}
-            </button>
-          </div>
-        </form>
+        {mode !== 'login' && step === 'password' && (
+          <form onSubmit={savePassword} className="space-y-4">
+            <p className="text-xs text-center text-emerald-600 font-bold">✅ নম্বর যাচাই হয়েছে, এখন পাসওয়ার্ড দিন</p>
+            {needName && <Field icon={UserIcon} label="আপনার নাম (লিডারবোর্ডে দেখাবে)" type="text" autoComplete="name" placeholder="যেমন: রাফি আহমেদ" value={name} onChange={(e) => setName(e.target.value)} />}
+            <Field icon={Lock} label={mode === 'register' ? 'পাসওয়ার্ড (অন্তত ৬ অক্ষর)' : 'নতুন পাসওয়ার্ড'} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Field icon={Lock} label="আবার পাসওয়ার্ড" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
+            <Submit loading={loading} text={mode === 'register' ? 'রেজিস্ট্রেশন শেষ করুন' : 'পাসওয়ার্ড সেভ করুন'} />
+          </form>
         )}
 
-        {step === 'name' && (
-        <form onSubmit={saveName} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">
-              আপনার নাম (লিডারবোর্ডে দেখাবে)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <User size={18} />
-              </div>
-              <input
-                type="text"
-                autoComplete="name"
-                placeholder="যেমন: রাফি আহমেদ"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
-                required
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 disabled:opacity-70 text-sm active:scale-[0.98] cursor-pointer"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <>শুরু করুন <ArrowRight size={16} /></>}
-          </button>
-        </form>
+        {mode !== 'login' && step !== 'password' && (
+          <button type="button" onClick={() => switchMode('login')} className="mt-4 w-full text-xs text-slate-500 hover:text-emerald-600 cursor-pointer">← আগে থেকে অ্যাকাউন্ট আছে? লগইন করুন</button>
         )}
         <div id="recaptcha-container" />
 
-        {step !== 'name' && <>
-        <div className="my-6 flex items-center gap-3">
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
-          <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">অথবা</span>
-          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
-        </div>
-
-        <button
-          onClick={handleGoogle}
-          className="w-full py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-center gap-3 shadow-xs dark:shadow-inner group active:scale-[0.98] cursor-pointer"
-        >
-          <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-          </svg>
-          Google দিয়ে লগইন করুন
-        </button>
-        </>}
+        {step !== 'password' && (
+          <>
+            <div className="my-5 flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+              <span className="text-xs text-slate-400 font-semibold">অথবা</span>
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+            </div>
+            <button onClick={google} disabled={loading} className="w-full py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 font-bold text-sm flex items-center justify-center gap-3 cursor-pointer disabled:opacity-70">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Google দিয়ে লগইন
+            </button>
+          </>
+        )}
+        <Link href="/" className="mt-5 block text-center text-xs text-slate-400 hover:text-emerald-600">← হোমে ফিরুন</Link>
       </div>
     </div>
   );

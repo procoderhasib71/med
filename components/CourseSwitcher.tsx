@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
-import { ACCOUNT_URL, PLATFORMS } from '@/lib/platform';
+import { PLATFORMS } from '@/lib/platform';
 import { useCourse } from '@/components/CourseProvider';
 
 // হেডারে কোন কোর্স চালু; ক্লাসরুমে ক্লিক করলে নেওয়া কোর্সগুলোর মধ্যে বদলানো যায়
@@ -40,7 +40,7 @@ export default function CourseSwitcher() {
                             {p === info.current && <Check size={15} className="text-emerald-500" />}
                         </button>
                     ))}
-                    <a href={`${ACCOUNT_URL}/profile`}
+                    <a href="/profile"
                         className="mt-1 flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold text-emerald-600 hover:bg-emerald-500/10 border-t border-slate-100 dark:border-slate-800">
                         <Plus size={14} /> আরও কোর্স নিন
                     </a>

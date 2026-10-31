@@ -15,3 +15,13 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
+
+/** ফোন নম্বরের অ্যাকাউন্টের লুকানো ইমেইল: পাসওয়ার্ড দিয়ে লগইনের জন্য (ছাত্র এটা কখনো দেখে না) */
+export const phoneEmail = (e164: string) => `${e164.replace(/\D/g, '')}@phone.admcq.com`;
+
+/** '01712345678', '+8801712345678', বাংলা অঙ্ক সব চলে; ভুল হলে '' */
+export function toE164(raw: string) {
+  const d = raw.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x))).replace(/\D/g, '');
+  const local = d.startsWith('880') ? d.slice(2) : d;
+  return /^01[3-9]\d{8}$/.test(local) ? `+88${local}` : '';
+}
