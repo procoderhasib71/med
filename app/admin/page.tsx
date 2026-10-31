@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, FilePlus2, Flag, KeyRound, Loader2, LogOut, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronRight, FilePlus2, Flag, KeyRound, Loader2, LogOut, Settings, ShieldCheck, Sparkles, X } from 'lucide-react';
 import AdminGate from '@/components/AdminGate';
 
-// admin প্যানেলের হোম: সব admin কাজের লিংক, admin পাসওয়ার্ড বদলানো, লগআউট
+// admin প্যানেলের হোম: সব admin কাজের লিংক; হেডারের সেটিংস বোতামে admin পাসওয়ার্ড বদলানো; লগআউট
 
 const TOOLS = [
     { href: '/admin/create-exam', icon: FilePlus2, title: 'মডেল টেস্ট বানান', hint: 'প্রশ্ন বাছাই করে নতুন পরীক্ষা', color: 'text-emerald-400 bg-emerald-500/10' },
@@ -32,8 +32,7 @@ function ChangePassword() {
 
     const input = 'w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950/60 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500';
     return (
-        <form onSubmit={submit} className="rounded-2xl border border-slate-800 bg-slate-900 p-5 space-y-3">
-            <h2 className="font-bold flex items-center gap-2"><KeyRound size={17} className="text-amber-400" /> admin পাসওয়ার্ড বদলান</h2>
+        <form onSubmit={submit} className="space-y-3">
             {msg && <p className={`text-sm font-semibold ${msg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{msg.text}</p>}
             <input className={input} type="password" autoComplete="current-password" placeholder="এখনকার পাসওয়ার্ড" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} required />
             <input className={input} type="password" autoComplete="new-password" placeholder="নতুন পাসওয়ার্ড (অন্তত ৮ অক্ষর)" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} required />
@@ -46,7 +45,30 @@ function ChangePassword() {
     );
 }
 
+/** সেটিংস popup: এখন শুধু admin পাসওয়ার্ড; Esc বা বাইরে ক্লিকে বন্ধ */
+function SettingsModal({ onClose }: { onClose: () => void }) {
+    useEffect(() => {
+        const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', esc);
+        return () => window.removeEventListener('keydown', esc);
+    }, [onClose]);
+    return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+            <div onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+            <div role="dialog" aria-label="সেটিংস" className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl animate-[popin_.2s_ease-out]">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
+                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-amber-400 bg-amber-500/10"><KeyRound size={18} /></span>
+                    <h2 className="font-black flex-1">admin পাসওয়ার্ড বদলান</h2>
+                    <button onClick={onClose} aria-label="বন্ধ করুন" className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 cursor-pointer"><X size={18} /></button>
+                </div>
+                <div className="p-5"><ChangePassword /></div>
+            </div>
+        </div>
+    );
+}
+
 export default function AdminHome() {
+    const [settings, setSettings] = useState(false);
     const logout = async () => {
         await fetch('/api/admin/auth', { method: 'DELETE' }).catch(() => null);
         window.location.reload();
@@ -64,9 +86,14 @@ export default function AdminHome() {
                                 <p className="text-xs text-slate-400">AdMCQ ক্লাসরুম</p>
                             </div>
                         </div>
-                        <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer">
-                            <LogOut size={16} /> লগআউট
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={() => setSettings(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer">
+                                <Settings size={16} /> সেটিংস
+                            </button>
+                            <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer">
+                                <LogOut size={16} /> লগআউট
+                            </button>
+                        </div>
                     </header>
 
                     <section className="grid sm:grid-cols-3 gap-3">
@@ -86,8 +113,8 @@ export default function AdminHome() {
                         যে কোর্স চালু আছে (হেডারে বাছাই করা), মডেল টেস্ট আর প্রশ্নের তালিকা সেই কোর্সের।
                     </p>
 
-                    <ChangePassword />
                 </div>
+                {settings && <SettingsModal onClose={() => setSettings(false)} />}
             </div>
         </AdminGate>
     );
