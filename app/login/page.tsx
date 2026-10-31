@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import {
   ConfirmationResult,
   EmailAuthProvider,
@@ -19,6 +18,7 @@ import {
 import { ArrowRight, KeyRound, Loader2, Lock, Phone, User as UserIcon } from 'lucide-react';
 import { auth, phoneEmail, toE164 } from '@/lib/firebase';
 import { getMe, setMyName } from '@/lib/siteApi';
+import { onAuthStateChanged, session } from '@/lib/session';
 
 // স্টুডেন্ট লগইন (app.admcq.com): ফোন নম্বর + পাসওয়ার্ড, OTP ছাড়া।
 // নতুন অ্যাকাউন্ট আর পাসওয়ার্ড ভুলে গেলে: ফোনে একবার OTP, তারপর নিজের পাসওয়ার্ড।
@@ -90,8 +90,15 @@ export default function LoginPage() {
   const recaptcha = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
+    // আগে থেকেই লগইন থাকলে সোজা ক্লাসরুমে (শুধু প্রথমবারের অবস্থা দেখি; রেজিস্ট্রেশনের মাঝে OTP তে লগইন হলে নয়)
+    let first = true;
+    const stop = onAuthStateChanged(session, (user) => {
+      if (first && user) window.location.replace(nextParam() || '/');
+      first = false;
+    });
     // Google এর popup আটকে গেলে redirect এ যাই, ফিরে এলে এখানে লগইন শেষ
     getRedirectResult(auth).then((r) => { if (r) finish(false); }).catch((err) => setError(authError(err)));
+    return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -144,6 +151,10 @@ export default function LoginPage() {
     run(async () => {
       const number = toE164(phone);
       if (!number) throw new Error('ফোন নম্বরটা ঠিক নেই। ০১ দিয়ে ১১ অঙ্কের নম্বর দিন।');
+      // আগে থেকে রেজিস্টার্ড হলে নতুন কোড নয়, লগইন করতে বলি; "ভুলে গেছি" তে উল্টো
+      const { registered } = await fetch(`/api/auth/phone?phone=${encodeURIComponent(number)}`).then((r) => r.json()).catch(() => ({ registered: null }));
+      if (mode === 'register' && registered === true) throw new Error('এই নম্বরে আগেই রেজিস্ট্রেশন করা আছে। লগইন করুন, পাসওয়ার্ড মনে না থাকলে "পাসওয়ার্ড ভুলে গেছি" দিন।');
+      if (mode === 'forgot' && registered === false) throw new Error('এই নম্বরে কোনো অ্যাকাউন্ট নেই। "রেজিস্টার করুন" দিন।');
       try {
         recaptcha.current ||= new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
         confirmation.current = await signInWithPhoneNumber(auth, number, recaptcha.current);
@@ -277,7 +288,7 @@ export default function LoginPage() {
             </button>
           </>
         )}
-        <Link href="/" className="mt-5 block text-center text-xs text-slate-400 hover:text-emerald-600">← হোমে ফিরুন</Link>
+        <a href="https://admcq.com" className="mt-5 block text-center text-xs text-slate-400 hover:text-emerald-600">← মূল সাইটে ফিরুন</a>
       </div>
     </div>
   );
