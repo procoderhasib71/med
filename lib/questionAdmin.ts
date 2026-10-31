@@ -55,39 +55,46 @@ export async function listExplanationDrafts(limit = 30) {
 
 const AI_PENDING = "(error LIKE 'Error:%' OR error LIKE 'pre-explain error:%')";
 const NEW_OPT = "lower(trim(coalesce(new_correct_option, '')))";
+// ধরন: AI এর উত্তর (new_correct_option) আর error এর শুরু দেখে। উত্তর একই হলে "Error:" মানে প্রশ্ন/অপশনে সমস্যা (typo),
+// "pre-explain error:" মানে শুধু আগের ব্যাখ্যা দুর্বল।
 const AI_TYPE = `CASE WHEN new_correct_option IS NULL THEN 'unclear'
     WHEN ${NEW_OPT} = 'none' THEN 'none'
     WHEN ${NEW_OPT} LIKE '%,%' THEN 'multiple'
     WHEN ${NEW_OPT} <> lower(trim(coalesce(correct_option, ''))) THEN 'answer'
+    WHEN error LIKE 'Error:%' THEN 'typo'
     ELSE 'explanation' END`;
-export const AI_TYPES = ['explanation', 'answer', 'multiple', 'none', 'unclear'] as const;
+// কোথায় ধরা: Error: (নতুন ব্যাখ্যা লেখার সময় প্রশ্নে) নাকি pre-explain error: (আগের ব্যাখ্যা যাচাইয়ে)
+const AI_SRC = `CASE WHEN error LIKE 'Error:%' THEN 'error' ELSE 'pre' END`;
+export const AI_TYPES = ['answer', 'explanation', 'typo', 'multiple', 'none', 'unclear'] as const;
+export const AI_SRCS = ['error', 'pre'] as const;
 export type AiType = (typeof AI_TYPES)[number];
 
 const EDITABLE = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option', 'explanation'] as const;
 type Editable = (typeof EDITABLE)[number];
 
-export async function listAiReview(platform: string, opts: { subject?: string; type?: string; offset?: number; limit?: number }) {
+export async function listAiReview(platform: string, opts: { subject?: string; type?: string; src?: string; offset?: number; limit?: number }) {
     const where = [`platform = ?`, AI_PENDING];
     const args: (string | number)[] = [platform];
     if (opts.subject) { where.push('subject = ?'); args.push(opts.subject); }
     if (opts.type && (AI_TYPES as readonly string[]).includes(opts.type)) { where.push(`${AI_TYPE} = ?`); args.push(opts.type); }
+    if (opts.src && (AI_SRCS as readonly string[]).includes(opts.src)) { where.push(`${AI_SRC} = ?`); args.push(opts.src); }
     const limit = Math.min(Math.max(Number(opts.limit) || 20, 1), 50);
     const offset = Math.max(Number(opts.offset) || 0, 0);
     const [rows, counts] = await Promise.all([
         turso.execute({
             sql: `SELECT id, subject, chapter, topic, question, option_a, option_b, option_c, option_d, correct_option,
-                         explanation, error, new_correct_option, new_explanation, ${AI_TYPE} AS ai_type
+                         explanation, error, new_correct_option, new_explanation, ${AI_TYPE} AS ai_type, ${AI_SRC} AS ai_src
                   FROM questions WHERE ${where.join(' AND ')} ORDER BY subject, id LIMIT ? OFFSET ?`,
             args: [...args, limit, offset],
         }),
         turso.execute({
-            sql: `SELECT subject, ${AI_TYPE} AS ai_type, COUNT(*) AS n FROM questions WHERE platform = ? AND ${AI_PENDING} GROUP BY 1, 2`,
+            sql: `SELECT subject, ${AI_TYPE} AS ai_type, ${AI_SRC} AS ai_src, COUNT(*) AS n FROM questions WHERE platform = ? AND ${AI_PENDING} GROUP BY 1, 2, 3`,
             args: [platform],
         }),
     ]);
     return {
         items: rows.rows.map((r) => ({ ...r })),
-        counts: counts.rows.map((r) => ({ subject: String(r.subject), type: String(r.ai_type), n: Number(r.n) })),
+        counts: counts.rows.map((r) => ({ subject: String(r.subject), type: String(r.ai_type), src: String(r.ai_src), n: Number(r.n) })),
     };
 }
 
@@ -118,11 +125,14 @@ export async function reviewAiFix(questionId: string, action: 'apply' | 'keep' |
     if (action === 'keep') return applyFields(questionId, {}, 'Verified OK', by);
 
     if (action === 'apply') {
-        const r = await turso.execute({ sql: 'SELECT new_correct_option, new_explanation FROM questions WHERE id = ?', args: [questionId] });
+        const r = await turso.execute({ sql: 'SELECT correct_option, error, new_correct_option, new_explanation FROM questions WHERE id = ?', args: [questionId] });
         if (r.rows.length === 0) throw new Error('প্রশ্ন পাওয়া যায়নি');
         const opt = String(r.rows[0].new_correct_option ?? '').trim().toLowerCase();
         const text = (edits.explanation ?? String(r.rows[0].new_explanation ?? '')).trim();
         if (!OPTIONS.includes(opt)) throw new Error('AI এর উত্তর একটা অপশন না, নিজে ঠিক করে সেভ করুন');
+        // উত্তর একই আর "Error:" মানে প্রশ্ন/অপশনে টাইপো; শুধু ব্যাখ্যা বসালে টাইপো থেকে যায়
+        const same = opt === String(r.rows[0].correct_option ?? '').trim().toLowerCase();
+        if (same && String(r.rows[0].error ?? '').startsWith('Error:')) throw new Error('প্রশ্ন বা অপশনে সমস্যা আছে, "নিজে ঠিক করুন" দিয়ে ঠিক করুন');
         if (!text) throw new Error('ব্যাখ্যা ফাঁকা');
         return applyFields(questionId, { correct_option: opt, explanation: text }, 'Fixed by admin', by);
     }

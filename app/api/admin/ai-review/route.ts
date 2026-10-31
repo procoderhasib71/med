@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
         const data = await listAiReview(platformOf(req), {
             subject: p.get('subject') || '',
             type: p.get('type') || '',
+            src: p.get('src') || '',
             offset: Number(p.get('offset') || 0),
             limit: Number(p.get('limit') || 20),
         });

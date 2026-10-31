@@ -27,24 +27,32 @@ type Item = {
     new_correct_option: string | null;
     new_explanation: string | null;
     ai_type: AiType;
+    ai_src: AiSrc;
 };
-type AiType = 'explanation' | 'answer' | 'multiple' | 'none' | 'unclear';
-type Count = { subject: string; type: AiType; n: number };
+type AiType = 'answer' | 'explanation' | 'typo' | 'multiple' | 'none' | 'unclear';
+type AiSrc = 'error' | 'pre';
+type Count = { subject: string; type: AiType; src: AiSrc; n: number };
 type Form = { question: string; option_a: string; option_b: string; option_c: string; option_d: string; correct_option: string; explanation: string };
 
 const LETTERS = ['a', 'b', 'c', 'd'] as const;
 const PAGE = 20;
 
+// ডাটাবেস থেকে: AI এর উত্তর (new_correct_option) আর error এর শুরু (lib/questionAdmin.ts এর AI_TYPE)
 const TYPES: { key: AiType; label: readonly [string, string]; color: string }[] = [
-    { key: 'explanation', label: ['শুধু ব্যাখ্যা দুর্বল', 'Weak explanation'], color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
     { key: 'answer', label: ['উত্তর ভুল', 'Wrong answer'], color: 'text-rose-300 bg-rose-500/10 border-rose-500/30' },
+    { key: 'explanation', label: ['শুধু ব্যাখ্যা দুর্বল', 'Weak explanation'], color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
+    { key: 'typo', label: ['উত্তর ঠিক, প্রশ্নে/অপশনে সমস্যা', 'Answer OK, question/option issue'], color: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/30' },
     { key: 'multiple', label: ['একাধিক সঠিক উত্তর', 'Multiple correct'], color: 'text-orange-300 bg-orange-500/10 border-orange-500/30' },
     { key: 'none', label: ['অপশনে উত্তর নেই', 'Answer not in options'], color: 'text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/30' },
     { key: 'unclear', label: ['প্রশ্ন অস্পষ্ট', 'Unclear question'], color: 'text-slate-300 bg-slate-500/10 border-slate-500/30' },
 ];
 const typeInfo = (k: AiType) => TYPES.find((x) => x.key === k) || TYPES[0];
+const SRCS: { key: AiSrc; label: readonly [string, string] }[] = [
+    { key: 'error', label: ['প্রশ্নে ভুল (Error:)', 'Question error (Error:)'] },
+    { key: 'pre', label: ['আগের ব্যাখ্যায় ভুল (pre-explain)', 'Old explanation error (pre-explain)'] },
+];
 
-function ReviewCard({ item, onDone }: { item: Item; onDone: (id: string, type: AiType, subject: string) => void }) {
+function ReviewCard({ item, onDone }: { item: Item; onDone: (item: Item) => void }) {
     const { t } = useLang();
     const [form, setForm] = useState<Form | null>(null);
     const [busy, setBusy] = useState(false);
@@ -62,7 +70,7 @@ function ReviewCard({ item, onDone }: { item: Item; onDone: (id: string, type: A
             const res = await authFetch('/api/admin/ai-review', { method: 'POST', body: JSON.stringify({ questionId: item.id, action, edits }) });
             const data = await res.json().catch(() => ({}));
             if (!data.success) return setError(data.error || t('সমস্যা হয়েছে', 'Something went wrong'));
-            onDone(item.id, item.ai_type, item.subject);
+            onDone(item);
         } finally {
             setBusy(false);
         }
@@ -144,6 +152,7 @@ function ReviewCard({ item, onDone }: { item: Item; onDone: (id: string, type: A
                     </div>
                     {!dbOpt && <p className="text-xs text-rose-300">{t('ডাটাবেসে কোনো উত্তর দেওয়া নেই', 'No answer set in the database')}</p>}
                     {item.ai_type === 'none' && <p className="text-xs text-fuchsia-300">{t('AI এর মতে সঠিক উত্তর কোনো অপশনে নেই, নিচের ব্যাখ্যায় আসল উত্তর আছে', 'AI says no option is correct; the real answer is in the explanation below')}</p>}
+                    {item.ai_type === 'typo' && <p className="text-xs text-cyan-300">{t('উত্তর ঠিক আছে, কিন্তু প্রশ্ন বা অপশনে সমস্যা। "নিজে ঠিক করুন" দিয়ে ঠিক করুন, শুধু ব্যাখ্যা বসালে সমস্যাটা থেকে যাবে।', 'The answer is right but the question or an option has an issue. Use "Edit manually"; adding only the explanation leaves the issue in place.')}</p>}
 
                     <div className="grid md:grid-cols-2 gap-2">
                         <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-sm">
@@ -181,6 +190,7 @@ function AiReviewInner() {
     const { t } = useLang();
     const [subject, setSubject] = useState('');
     const [type, setType] = useState<AiType | ''>('');
+    const [src, setSrc] = useState<AiSrc | ''>('');
     const [items, setItems] = useState<Item[]>([]);
     const [counts, setCounts] = useState<Count[]>([]);
     const [offset, setOffset] = useState(0);
@@ -192,7 +202,7 @@ function AiReviewInner() {
         setLoading(true);
         setError('');
         try {
-            const q = new URLSearchParams({ subject, type, offset: String(from), limit: String(PAGE) });
+            const q = new URLSearchParams({ subject, type, src, offset: String(from), limit: String(PAGE) });
             const res = await authFetch(`/api/admin/ai-review?${q}`);
             const data = await res.json().catch(() => ({}));
             if (!data.success) return setError(data.error || t('লোড করা যায়নি', 'Could not load'));
@@ -203,14 +213,14 @@ function AiReviewInner() {
         } finally {
             setLoading(false);
         }
-    }, [subject, type]);
+    }, [subject, type, src]);
 
     useEffect(() => { load(0); }, [load]);
 
     // রিভিউ হলে কার্ড সরাই আর গোনা কমাই; পরের পেজের offset ও এক কমে
-    const done = (id: string, ai: AiType, subj: string) => {
-        setItems((prev) => prev.filter((x) => x.id !== id));
-        setCounts((prev) => prev.map((c) => (c.subject === subj && c.type === ai ? { ...c, n: c.n - 1 } : c)).filter((c) => c.n > 0));
+    const done = (it: Item) => {
+        setItems((prev) => prev.filter((x) => x.id !== it.id));
+        setCounts((prev) => prev.map((c) => (c.subject === it.subject && c.type === it.ai_type && c.src === it.ai_src ? { ...c, n: c.n - 1 } : c)).filter((c) => c.n > 0));
         setOffset((o) => Math.max(0, o - 1));
     };
 
@@ -219,8 +229,10 @@ function AiReviewInner() {
         counts.forEach((c) => m.set(c.subject, (m.get(c.subject) || 0) + c.n));
         return [...m.entries()].sort((a, b) => b[1] - a[1]);
     }, [counts]);
-    const typeCount = (k: AiType) => counts.filter((c) => c.type === k && (!subject || c.subject === subject)).reduce((s, c) => s + c.n, 0);
-    const total = counts.filter((c) => !subject || c.subject === subject).reduce((s, c) => s + c.n, 0);
+    // প্রতিটা চিপের সংখ্যা বাকি দুই বাছাই মেনে গোনা
+    const count = (f: { type?: AiType | ''; src?: AiSrc | '' }) => counts
+        .filter((c) => (!subject || c.subject === subject) && (!f.type || c.type === f.type) && (!f.src || c.src === f.src))
+        .reduce((s, c) => s + c.n, 0);
     const all = counts.reduce((s, c) => s + c.n, 0);
 
     const chip = (active: boolean) => `text-xs px-3 py-1.5 rounded-lg border font-semibold cursor-pointer ${active ? 'bg-violet-600/25 text-violet-200 border-violet-500/60' : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600'}`;
@@ -245,11 +257,21 @@ function AiReviewInner() {
                         <option value="">{t(`সব বিষয় (${all})`, `All subjects (${all})`)}</option>
                         {subjects.map(([s, n]) => <option key={s} value={s}>{s} ({n})</option>)}
                     </select>
-                    <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => setType('')} className={chip(type === '')}>{t('সব ধরন', 'All types')} ({total})</button>
-                        {TYPES.map((x) => (
+                    <div className="flex gap-2 flex-wrap items-center">
+                        <span className="text-[11px] text-slate-500 w-14">{t('কোথায়', 'Where')}</span>
+                        <button onClick={() => setSrc('')} className={chip(src === '')}>{t('সব', 'All')} ({count({ type })})</button>
+                        {SRCS.map((x) => (
+                            <button key={x.key} onClick={() => setSrc(x.key)} className={chip(src === x.key)}>
+                                {t(x.label[0], x.label[1])} ({count({ type, src: x.key })})
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex gap-2 flex-wrap items-center">
+                        <span className="text-[11px] text-slate-500 w-14">{t('ধরন', 'Type')}</span>
+                        <button onClick={() => setType('')} className={chip(type === '')}>{t('সব ধরন', 'All types')} ({count({ src })})</button>
+                        {TYPES.filter((x) => type === x.key || count({ type: x.key, src }) > 0).map((x) => (
                             <button key={x.key} onClick={() => setType(x.key)} className={chip(type === x.key)}>
-                                {t(x.label[0], x.label[1])} ({typeCount(x.key)})
+                                {t(x.label[0], x.label[1])} ({count({ type: x.key, src })})
                             </button>
                         ))}
                     </div>
