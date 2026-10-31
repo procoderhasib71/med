@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useLang } from '@/lib/i18n';
 import BrandLoader from '@/components/BrandLoader';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -30,6 +31,7 @@ interface ExamQuestion {
 
 function ExamRunner() {
     const router = useRouter();
+    const { t, n, lang } = useLang();
     const searchParams = useSearchParams();
     const testId = searchParams.get('testId') || '';
     const mode = searchParams.get('mode') || ''; // 'review' | 'retake' | ''
@@ -111,7 +113,7 @@ function ExamRunner() {
                     const nextCount = prev + 1;
                     if (nextCount >= 3) {
                         // ৩ বার ট্যাব বদলালে অটোমেটিক সাবমিট হয়ে যাবে
-                        alert('🚨 আপনি বারবার ট্যাব পরিবর্তন করায় আপনার পরীক্ষা স্বয়ংক্রিয়ভাবে জমা করা হলো!');
+                        alert(t('🚨 আপনি বারবার ট্যাব পরিবর্তন করায় আপনার পরীক্ষা স্বয়ংক্রিয়ভাবে জমা করা হলো!', '🚨 You switched tabs too many times, so your exam was submitted automatically!'));
                         handleFinalSubmit(true);
                     } else {
                         setShowTabWarningModal(true);
@@ -253,7 +255,7 @@ function ExamRunner() {
 
     if (loading) {
         return (
-            <BrandLoader text="পরীক্ষা লোড হচ্ছে..." />
+            <BrandLoader text={t('পরীক্ষা লোড হচ্ছে...', 'Loading exam...')} />
         );
     }
 
@@ -267,11 +269,11 @@ function ExamRunner() {
                     </div>
 
                     <h2 className="text-lg font-black text-slate-900 dark:text-white mb-2">
-                        লাইভ পরীক্ষা সফলভাবে জমা হয়েছে!
+                        {t('লাইভ পরীক্ষা সফলভাবে জমা হয়েছে!', 'Live exam submitted successfully!')}
                     </h2>
 
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                        আপনার উত্তরপত্র ডাটাবেজে সংরক্ষিত হয়েছে। লাইভ পরীক্ষার সময় শেষ হওয়ার পর এবং <strong>অ্যাডমিন ফলাফল অনুমোদন করলে</strong> আপনার প্রাপ্ত নম্বর, মেরিট লিস্ট ও সঠিক সমাধান আর্কাইভ সেকশনে দেখতে পাবেন।
+                        {lang === 'en' ? <>Your answer sheet is saved. Your marks, merit list and solutions appear once the live window ends and <strong>the admin approves the result</strong>.</> : <>আপনার উত্তরপত্র ডাটাবেজে সংরক্ষিত হয়েছে। লাইভ পরীক্ষার সময় শেষ হওয়ার পর এবং <strong>অ্যাডমিন ফলাফল অনুমোদন করলে</strong> আপনার প্রাপ্ত নম্বর, মেরিট লিস্ট ও সঠিক সমাধান আর্কাইভ সেকশনে দেখতে পাবেন।</>}
                     </p>
 
                     <Link
@@ -279,7 +281,7 @@ function ExamRunner() {
                         className="w-full py-3 rounded-xl bg-[#059669] hover:bg-emerald-700 text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-xs transition-all"
                     >
                         <Home size={15} />
-                        <span>মডেল টেস্ট পোর্টালে ফিরুন</span>
+                        <span>{t('মডেল টেস্ট পোর্টালে ফিরুন', 'Back to model tests')}</span>
                     </Link>
                 </div>
             </div>
@@ -298,16 +300,16 @@ function ExamRunner() {
                             <ShieldAlert size={32} />
                         </div>
                         <h3 className="text-base font-black text-slate-900 dark:text-white mb-1.5">
-                            সতর্কতা: ট্যাব পরিবর্তন নিষেধ!
+                            {t('সতর্কতা: ট্যাব পরিবর্তন নিষেধ!', 'Warning: do not switch tabs!')}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                            আপনি পরীক্ষা স্ক্রিন ছেড়ে অন্য ট্যাবে গিয়েছিলেন। এটি একটি লাইভ পরীক্ষা। আর <strong>{3 - tabWarningCount} বার</strong> ট্যাব বদলালে আপনার পরীক্ষা স্বয়ংক্রিয়ভাবে বাতিল ও জমা হয়ে যাবে।
+                            {lang === 'en' ? <>You left the exam screen. This is a live exam. Switching tabs <strong>{3 - tabWarningCount} more time(s)</strong> will submit your exam automatically.</> : <>আপনি পরীক্ষা স্ক্রিন ছেড়ে অন্য ট্যাবে গিয়েছিলেন। এটি একটি লাইভ পরীক্ষা। আর <strong>{3 - tabWarningCount} বার</strong> ট্যাব বদলালে আপনার পরীক্ষা স্বয়ংক্রিয়ভাবে বাতিল ও জমা হয়ে যাবে।</>}
                         </p>
                         <button
                             onClick={() => setShowTabWarningModal(false)}
                             className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer"
                         >
-                            বুঝেছি, পরীক্ষা চালিয়ে যান
+                            {t('বুঝেছি, পরীক্ষা চালিয়ে যান', 'Got it, continue the exam')}
                         </button>
                     </div>
                 </div>
@@ -320,26 +322,26 @@ function ExamRunner() {
                         <div className="flex items-center gap-2.5 mb-3 text-amber-500">
                             <AlertCircle size={22} />
                             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                                খাতা জমা দিতে চান?
+                                {t('খাতা জমা দিতে চান?', 'Submit your answer sheet?')}
                             </h3>
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
-                            মোট প্রশ্ন: <span className="font-semibold text-slate-800 dark:text-slate-200">{questions.length}</span> |
-                            দাগিয়েছেন: <span className="font-semibold text-emerald-600">{Object.keys(answers).length}</span> |
-                            বাকি: <span className="font-semibold text-rose-500">{questions.length - Object.keys(answers).length}</span>
+                            {t('মোট প্রশ্ন', 'Total')}: <span className="font-semibold text-slate-800 dark:text-slate-200">{questions.length}</span> |
+                            {t('দাগিয়েছেন', 'Answered')}: <span className="font-semibold text-emerald-600">{Object.keys(answers).length}</span> |
+                            {t('বাকি', 'Left')}: <span className="font-semibold text-rose-500">{questions.length - Object.keys(answers).length}</span>
                         </p>
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowConfirmModal(false)}
                                 className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                             >
-                                ফিরে যান
+                                {t('ফিরে যান', 'Go back')}
                             </button>
                             <button
                                 onClick={() => handleFinalSubmit()}
                                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors cursor-pointer"
                             >
-                                হ্যাঁ, জমা দিন
+                                {t('হ্যাঁ, জমা দিন', 'Yes, submit')}
                             </button>
                         </div>
                     </div>
@@ -354,7 +356,7 @@ function ExamRunner() {
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                     >
                         <ArrowLeft size={15} />
-                        <span>প্রস্থান</span>
+                        <span>{t('প্রস্থান', 'Exit')}</span>
                     </button>
 
                     {!isSubmitted ? (
@@ -367,7 +369,7 @@ function ExamRunner() {
                         </div>
                     ) : (
                         <span className="text-xs font-bold text-emerald-600 inline-flex items-center gap-1">
-                            <Sparkles size={14} /> {mode === 'review' ? 'খাতা ও সমাধান রিভিউ' : 'ফলাফল প্রকাশিত'}
+                            <Sparkles size={14} /> {mode === 'review' ? t('খাতা ও সমাধান রিভিউ', 'Answer sheet & solutions') : t('ফলাফল প্রকাশিত', 'Result published')}
                         </span>
                     )}
 
@@ -376,7 +378,7 @@ function ExamRunner() {
                             onClick={() => setShowConfirmModal(true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                         >
-                            <span>সাবমিট</span>
+                            <span>{t('সাবমিট', 'Submit')}</span>
                             <span className="bg-emerald-700/60 px-1.5 py-0.5 rounded text-[11px] font-mono">
                                 {Object.keys(answers).length}/{questions.length}
                             </span>
@@ -397,29 +399,29 @@ function ExamRunner() {
                                 <Award size={20} />
                             </div>
                             <div>
-                                <h2 className="text-sm font-bold text-slate-900 dark:text-white">পরীক্ষার ফলাফল বিবরণী</h2>
-                                <p className="text-xs text-slate-400">{examInfo?.title || 'মডেল টেস্ট'}</p>
+                                <h2 className="text-sm font-bold text-slate-900 dark:text-white">{t('পরীক্ষার ফলাফল বিবরণী', 'Exam result')}</h2>
+                                <p className="text-xs text-slate-400">{examInfo?.title || t('মডেল টেস্ট', 'Model test')}</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center border border-slate-100 dark:border-slate-800">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">প্রাপ্ত স্কোর</span>
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{t('প্রাপ্ত স্কোর', 'Score')}</span>
                                 <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{stats.finalScore}</span>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">/ {stats.total}</span>
                             </div>
                             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center border border-slate-100 dark:border-slate-800">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">সঠিক উত্তর</span>
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{t('সঠিক উত্তর', 'Correct')}</span>
                                 <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{stats.correct}</span>
-                                <span className="text-[10px] text-slate-400 block mt-0.5">টি প্রশ্ন</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">{t('টি প্রশ্ন', 'questions')}</span>
                             </div>
                             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center border border-slate-100 dark:border-slate-800">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">ভুল উত্তর</span>
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{t('ভুল উত্তর', 'Wrong')}</span>
                                 <span className="text-xl font-bold text-rose-600 dark:text-rose-400">{stats.wrong}</span>
                                 <span className="text-[10px] text-rose-500 block mt-0.5">-{stats.negativeMarks}</span>
                             </div>
                             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center border border-slate-100 dark:border-slate-800">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">সঠিকতার হার</span>
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{t('সঠিকতার হার', 'Accuracy')}</span>
                                 <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{stats.accuracy}%</span>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">Accuracy</span>
                             </div>
@@ -430,13 +432,13 @@ function ExamRunner() {
                                 onClick={() => window.location.reload()}
                                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                                <RotateCcw size={14} /> পুনরায় প্র্যাকটিস
+                                <RotateCcw size={14} /> {t('পুনরায় প্র্যাকটিস', 'Practise again')}
                             </button>
                             <Link
                                 href="/model-test"
                                 className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5"
                             >
-                                <Home size={14} /> পোর্টালে ফিরুন
+                                <Home size={14} /> {t('পোর্টালে ফিরুন', 'Back to portal')}
                             </Link>
                         </div>
                     </div>
@@ -520,7 +522,7 @@ function ExamRunner() {
 
                                 {isSubmitted && q.explanation && (
                                     <div className="mt-3.5 p-3.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-xs">
-                                        <span className="font-bold text-amber-800 dark:text-amber-400 block mb-0.5">ব্যাখ্যা:</span>
+                                        <span className="font-bold text-amber-800 dark:text-amber-400 block mb-0.5">{t('ব্যাখ্যা:', 'Explanation:')}</span>
                                         <div className="text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
                                             <RenderTextOrMath text={q.explanation} />
                                         </div>
@@ -538,7 +540,7 @@ function ExamRunner() {
                             className="w-full sm:w-auto min-w-[200px] px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <Send size={14} />
-                            <span>খাতা জমা দিন ({Object.keys(answers).length}/{questions.length})</span>
+                            <span>{t('খাতা জমা দিন', 'Submit answers')} ({n(Object.keys(answers).length)}/{n(questions.length)})</span>
                         </button>
                     </div>
                 )}

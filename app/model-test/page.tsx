@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLang } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -38,6 +39,7 @@ interface UserExamResult {
 
 export default function ModelTestPortalPage() {
     const router = useRouter();
+    const { t, n } = useLang();
 
     const [exams, setExams] = useState<ModelTestItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -148,13 +150,13 @@ export default function ModelTestPortalPage() {
     };
 
     const getLiveStatus = (exam: ModelTestItem) => {
-        if (!exam.is_live) return { status: 'ARCHIVE', label: 'আর্কাইভ', remainingText: '' };
+        if (!exam.is_live) return { status: 'ARCHIVE', label: t('আর্কাইভ', 'Archive'), remainingText: '' };
 
         const startMs = parseTime(exam.start_time);
         const endMs = parseTime(exam.end_time);
 
         if (!startMs && !endMs) {
-            return { status: 'RUNNING', label: 'লাইভ চলছে', remainingText: '' };
+            return { status: 'RUNNING', label: t('লাইভ চলছে', 'Live now'), remainingText: '' };
         }
 
         if (startMs && currentTime < startMs) {
@@ -162,8 +164,8 @@ export default function ModelTestPortalPage() {
             const hours = Math.floor(diffSec / 3600);
             const minutes = Math.floor((diffSec % 3600) / 60);
             const seconds = diffSec % 60;
-            const timeStr = hours > 0 ? `${hours} ঘণ্টা ${minutes} মিনিট` : `${minutes} মি. ${seconds} সে.`;
-            return { status: 'UPCOMING', label: 'আসন্ন লাইভ', remainingText: `শুরু হতে বাকি: ${timeStr}` };
+            const timeStr = hours > 0 ? t(`${n(hours)} ঘণ্টা ${n(minutes)} মিনিট`, `${hours}h ${minutes}m`) : t(`${n(minutes)} মি. ${n(seconds)} সে.`, `${minutes}m ${seconds}s`);
+            return { status: 'UPCOMING', label: t('আসন্ন লাইভ', 'Upcoming live'), remainingText: t(`শুরু হতে বাকি: ${timeStr}`, `Starts in: ${timeStr}`) };
         }
 
         if (endMs && currentTime <= endMs) {
@@ -171,11 +173,11 @@ export default function ModelTestPortalPage() {
             const hours = Math.floor(diffSec / 3600);
             const minutes = Math.floor((diffSec % 3600) / 60);
             const seconds = diffSec % 60;
-            const timeStr = hours > 0 ? `${hours} ঘণ্টা ${minutes} মিনিট` : `${minutes} মি. ${seconds} সে.`;
-            return { status: 'RUNNING', label: 'লাইভ চলছে', remainingText: `শেষ হতে বাকি: ${timeStr}` };
+            const timeStr = hours > 0 ? t(`${n(hours)} ঘণ্টা ${n(minutes)} মিনিট`, `${hours}h ${minutes}m`) : t(`${n(minutes)} মি. ${n(seconds)} সে.`, `${minutes}m ${seconds}s`);
+            return { status: 'RUNNING', label: t(t('লাইভ চলছে', 'Live now'), 'Live now'), remainingText: t(`শেষ হতে বাকি: ${timeStr}`, `Ends in: ${timeStr}`) };
         }
 
-        return { status: 'ENDED', label: 'সময় সমাপ্ত', remainingText: 'লাইভ সময় সমাপ্ত' };
+        return { status: 'ENDED', label: t('সময় সমাপ্ত', 'Time over'), remainingText: t('লাইভ সময় সমাপ্ত', 'Live window has ended') };
     };
 
     // 🎯 ফিল্টারিং:
@@ -226,12 +228,12 @@ export default function ModelTestPortalPage() {
                         className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                     >
                         <ArrowLeft size={16} />
-                        <span>হোমে ফিরুন</span>
+                        <span>{t('হোমে ফিরুন', 'Back to home')}</span>
                     </button>
 
                     <h1 className="text-sm font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
-                        মডেল টেস্ট পোর্টাল
+                        {t('মডেল টেস্ট পোর্টাল', 'Model test portal')}
                     </h1>
 
                     <div className="w-16" />
@@ -248,7 +250,7 @@ export default function ModelTestPortalPage() {
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                             }`}
                     >
-                        সবগুলো ({exams.length})
+                        {t('সবগুলো', 'All')} ({n(exams.length)})
                     </button>
 
                     <button
@@ -262,7 +264,7 @@ export default function ModelTestPortalPage() {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                         </span>
-                        <span>লাইভ এক্সাম ({liveExams.length})</span>
+                        <span>{t('লাইভ এক্সাম', 'Live exams')} ({n(liveExams.length)})</span>
                     </button>
 
                     <button
@@ -272,14 +274,14 @@ export default function ModelTestPortalPage() {
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                             }`}
                     >
-                        আর্কাইভ ({archiveExams.length})
+                        {t(t('আর্কাইভ', 'Archive'), 'Archive')} ({n(archiveExams.length)})
                     </button>
                 </div>
 
                 {loading ? (
                     <div className="py-24 flex flex-col items-center justify-center text-slate-400">
                         <Loader2 className="w-8 h-8 animate-spin text-[#059669] mb-2.5" />
-                        <span className="text-xs font-bold">মডেল টেস্ট লোড হচ্ছে...</span>
+                        <span className="text-xs font-bold">{t('মডেল টেস্ট লোড হচ্ছে...', 'Loading model tests...')}</span>
                     </div>
                 ) : filteredExams.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-[#1E293B] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
@@ -288,13 +290,13 @@ export default function ModelTestPortalPage() {
                         </div>
                         <h3 className="text-sm font-extrabold text-slate-900 dark:text-white mb-1">
                             {activeTab === 'live'
-                                ? 'বর্তমানে কোনো লাইভ পরীক্ষা উপলব্ধ নেই!'
-                                : 'বর্তমানে কোনো মডেল টেস্ট পাওয়া যায়নি!'}
+                                ? t('বর্তমানে কোনো লাইভ পরীক্ষা উপলব্ধ নেই!', 'No live exam right now!')
+                                : t('বর্তমানে কোনো মডেল টেস্ট পাওয়া যায়নি!', 'No model tests found!')}
                         </h3>
                         <p className="text-xs text-slate-400 max-w-xs mx-auto">
                             {activeTab === 'live'
-                                ? 'আপনি ইতিমধ্যে লাইভ পরীক্ষায় অংশ নিয়েছেন অথবা নির্ধারিত সময় পার হয়ে গেছে। আর্কাইভ থেকে যেকোনো সময় প্র্যাকটিস করতে পারেন।'
-                                : 'নতুন মডেল টেস্ট যুক্ত হলে এখানে দেখতে পাবেন।'}
+                                ? t('আপনি ইতিমধ্যে লাইভ পরীক্ষায় অংশ নিয়েছেন অথবা নির্ধারিত সময় পার হয়ে গেছে। আর্কাইভ থেকে যেকোনো সময় প্র্যাকটিস করতে পারেন।', 'You already took the live exam or its time has passed. You can practise it any time from the archive.')
+                                : t('নতুন মডেল টেস্ট যুক্ত হলে এখানে দেখতে পাবেন।', 'New model tests will appear here.')}
                         </p>
                     </div>
                 ) : (
@@ -328,11 +330,11 @@ export default function ModelTestPortalPage() {
                                                     </span>
                                                 ) : isAttempted && test.is_live && !isResultApproved ? (
                                                     <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/60">
-                                                        <Hourglass size={11} className="animate-spin" /> ফলাফল অপেক্ষমাণ
+                                                        <Hourglass size={11} className="animate-spin" /> {t('ফলাফল অপেক্ষমাণ', 'Result pending')}
                                                     </span>
                                                 ) : isAttempted ? (
                                                     <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-[#059669] border border-emerald-200/60 uppercase tracking-wider">
-                                                        <CheckCircle2 size={11} /> সম্পন্ন {result ? `(${result.score}/${test.total_marks})` : ''}
+                                                        <CheckCircle2 size={11} /> {t('সম্পন্ন', 'Done')} {result ? `(${n(result.score)}/${n(test.total_marks)})` : ''}
                                                     </span>
                                                 ) : (
                                                     <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 uppercase tracking-wider">
@@ -349,7 +351,7 @@ export default function ModelTestPortalPage() {
                                             </div>
 
                                             <span className="text-[11px] font-bold text-slate-400">
-                                                {test.subject || 'মেডিকেল সিলেবাস'}
+                                                {test.subject || t('মেডিকেল সিলেবাস', 'Full syllabus')}
                                             </span>
                                         </div>
 
@@ -359,22 +361,22 @@ export default function ModelTestPortalPage() {
 
                                         <p className="text-[11px] text-slate-400 mb-3.5">
                                             {isAttempted && test.is_live && !isResultApproved
-                                                ? 'আপনি পরীক্ষা সম্পন্ন করেছেন। লাইভ পরীক্ষার সময় শেষে অ্যাডমিন ফলাফল অনুমোদন করলে আপনার স্কোর দেখতে পাবেন।'
+                                                ? t('আপনি পরীক্ষা সম্পন্ন করেছেন। লাইভ পরীক্ষার সময় শেষে অ্যাডমিন ফলাফল অনুমোদন করলে আপনার স্কোর দেখতে পাবেন।', 'You finished the exam. Your score appears once the live window ends and the result is approved.')
                                                 : isAttempted
-                                                    ? `আপনি পরীক্ষাটি সম্পন্ন করেছেন। আপনার প্রাপ্ত নম্বর: ${result?.score ?? 0} / ${test.total_marks}`
+                                                    ? t(`আপনি পরীক্ষাটি সম্পন্ন করেছেন। আপনার প্রাপ্ত নম্বর: ${n(result?.score ?? 0)} / ${n(test.total_marks)}`, `You finished this test. Your score: ${result?.score ?? 0} / ${test.total_marks}`)
                                                     : test.is_live && status === 'UPCOMING'
-                                                        ? 'নির্ধারিত সময়ে লাইভ পরীক্ষা শুরু হবে। প্রস্তুতি নিয়ে প্রস্তুত থাকুন।'
-                                                        : 'সর্বোচ্চ কমন উপযোগী প্রশ্ন ব্যাংক ভিত্তিক ফাইনাল টেস্ট'}
+                                                        ? t('নির্ধারিত সময়ে লাইভ পরীক্ষা শুরু হবে। প্রস্তুতি নিয়ে প্রস্তুত থাকুন।', 'The live exam starts at the scheduled time. Get ready.')
+                                                        : t('সর্বোচ্চ কমন উপযোগী প্রশ্ন ব্যাংক ভিত্তিক ফাইনাল টেস্ট', 'Final test from the most common questions')}
                                         </p>
 
                                         <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
                                             <div className="flex items-center gap-1">
                                                 <HelpCircle size={14} className="text-slate-400" />
-                                                <span>{qCount} টি প্রশ্ন</span>
+                                                <span>{t(`${n(qCount)} টি প্রশ্ন`, `${qCount} questions`)}</span>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Clock size={14} className="text-slate-400" />
-                                                <span>{test.duration_minutes} মিনিট</span>
+                                                <span>{t(`${n(test.duration_minutes)} মিনিট`, `${test.duration_minutes} min`)}</span>
                                             </div>
                                             <div className="flex items-center gap-1 text-rose-500 font-bold">
                                                 <AlertCircle size={14} />
@@ -386,12 +388,12 @@ export default function ModelTestPortalPage() {
                                         {test.is_live && !isAttempted && status === 'UPCOMING' ? (
                                             <div className="w-full py-2.5 rounded-[14px] bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 cursor-not-allowed">
                                                 <Timer size={14} />
-                                                <span>পরীক্ষা শুরু হতে বাকি</span>
+                                                <span>{t('পরীক্ষা শুরু হতে বাকি', 'Starts soon')}</span>
                                             </div>
                                         ) : isAttempted && test.is_live && !isResultApproved ? (
                                             <div className="w-full py-2.5 rounded-[14px] bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2">
                                                 <Hourglass size={14} className="animate-pulse" />
-                                                <span>ফলাফল অনুমোদনের অপেক্ষায়...</span>
+                                                <span>{t('ফলাফল অনুমোদনের অপেক্ষায়...', 'Waiting for result approval...')}</span>
                                             </div>
                                         ) : isAttempted ? (
                                             <div className="grid grid-cols-2 gap-2">
@@ -401,7 +403,7 @@ export default function ModelTestPortalPage() {
                                                     className="py-2.5 rounded-[14px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
                                                 >
                                                     <Eye size={14} />
-                                                    <span>খাতা ও সমাধান</span>
+                                                    <span>{t('খাতা ও সমাধান', 'Answers & solutions')}</span>
                                                 </Link>
 
                                                 {/* আনলিমিটেড রিটেক প্র্যাকটিস বাটন */}
@@ -410,7 +412,7 @@ export default function ModelTestPortalPage() {
                                                     className="py-2.5 rounded-[14px] bg-[#059669] hover:bg-emerald-700 text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
                                                 >
                                                     <RotateCcw size={14} />
-                                                    <span>রিটেক প্র্যাকটিস</span>
+                                                    <span>{t('রিটেক প্র্যাকটিস', 'Retake practice')}</span>
                                                 </Link>
                                             </div>
                                         ) : (
@@ -422,7 +424,7 @@ export default function ModelTestPortalPage() {
                                                     }`}
                                             >
                                                 <Play size={14} fill="currentColor" />
-                                                <span>{test.is_live ? 'লাইভ পরীক্ষা শুরু করুন' : 'পরীক্ষা শুরু করুন'}</span>
+                                                <span>{test.is_live ? t('লাইভ পরীক্ষা শুরু করুন', 'Start live exam') : t('পরীক্ষা শুরু করুন', 'Start exam')}</span>
                                             </Link>
                                         )}
                                     </div>
@@ -443,11 +445,11 @@ export default function ModelTestPortalPage() {
                                         : 'bg-white dark:bg-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-xs cursor-pointer'
                                         }`}
                                 >
-                                    <ChevronLeft size={16} /> আগেরটি
+                                    <ChevronLeft size={16} /> {t('আগেরটি', 'Previous')}
                                 </button>
 
                                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                                    পৃষ্ঠা <span className="text-[#059669] font-black">{currentPage}</span> / {totalPages}
+                                    {t('পৃষ্ঠা', 'Page')} <span className="text-[#059669] font-black">{n(currentPage)}</span> / {n(totalPages)}
                                 </span>
 
                                 <button
@@ -461,7 +463,7 @@ export default function ModelTestPortalPage() {
                                         : 'bg-white dark:bg-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-xs cursor-pointer'
                                         }`}
                                 >
-                                    পরেরটি <ChevronRight size={16} />
+                                    {t('পরেরটি', 'Next')} <ChevronRight size={16} />
                                 </button>
                             </div>
                         )}

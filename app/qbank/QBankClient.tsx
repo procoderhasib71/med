@@ -19,6 +19,7 @@ import {
 import { useSearchParams, useRouter } from 'next/navigation';
 import { fetchFilteredQuestions, Question } from './actions';
 import { getMe, getSolved, reportQuestion, setBookmark, syncAnswers } from '@/lib/siteApi';
+import { useLang } from '@/lib/i18n';
 import { onAuthStateChanged } from '@/lib/session';
 import { session as auth } from '@/lib/session';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
@@ -303,6 +304,7 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 
 function QBankInner() {
     const searchParams = useSearchParams();
+    const { t } = useLang();
     const router = useRouter();
     const urlSubject = searchParams.get('subject');
 
@@ -582,12 +584,12 @@ function QBankInner() {
     }, [flushPendingSync]);
 
     const quickReportOptions = [
-        'ভুল উত্তর মার্ক করা',
-        'টাইপো / বানান ভুল',
-        'ব্যাখ্যায় ভুল আছে',
-        'অপশন বা প্রশ্নে তথ্য মিসিং',
-        'একাধিক সঠিক উত্তর আছে',
-        'প্রশ্নটি সিলেবাসের বাইরে'
+        t('ভুল উত্তর মার্ক করা', 'Wrong answer marked'),
+        t('টাইপো / বানান ভুল', 'Typo / spelling'),
+        t('ব্যাখ্যায় ভুল আছে', 'Explanation is wrong'),
+        t('অপশন বা প্রশ্নে তথ্য মিসিং', 'Missing info in question or options'),
+        t('একাধিক সঠিক উত্তর আছে', 'More than one correct answer'),
+        t('প্রশ্নটি সিলেবাসের বাইরে', 'Out of syllabus'),
     ];
 
     const handleQuickTagClick = (tag: string) => {
@@ -601,7 +603,7 @@ function QBankInner() {
     const toggleBookmark = async (questionId: string) => {
         const user = auth.currentUser;
         if (!user) {
-            showToast('বুকমার্ক করতে লগইন করুন।');
+            showToast(t('বুকমার্ক করতে লগইন করুন।', 'Log in to bookmark.'));
             router.push('/login');
             return;
         }
@@ -624,7 +626,7 @@ function QBankInner() {
                 else next.delete(questionId);
                 return next;
             });
-            showToast('বুকমার্ক সেভ করা যায়নি।');
+            showToast(t('বুকমার্ক সেভ করা যায়নি।', 'Could not save the bookmark.'));
         }
     };
 
@@ -632,7 +634,7 @@ function QBankInner() {
         if (!reportingQuestion || !reportReason.trim()) return;
         const user = auth.currentUser;
         if (!user) {
-            showToast('রিপোর্ট করতে লগইন করুন।');
+            showToast(t('রিপোর্ট করতে লগইন করুন।', 'Log in to report.'));
             router.push('/login');
             return;
         }
@@ -641,12 +643,12 @@ function QBankInner() {
         try {
             await reportQuestion(String(reportingQuestion.id), reportReason.trim());
 
-            showToast('ধন্যবাদ! আপনার রিপোর্ট জমা হয়েছে।');
+            showToast(t('ধন্যবাদ! আপনার রিপোর্ট জমা হয়েছে।', 'Thanks! Your report was sent.'));
             setReportingQuestion(null);
             setReportReason('');
         } catch (err) {
             console.error("Report submit error:", err);
-            showToast('রিপোর্ট পাঠাতে সমস্যা হয়েছে।');
+            showToast(t('রিপোর্ট পাঠাতে সমস্যা হয়েছে।', 'Could not send the report.'));
         } finally {
             setReportSubmitting(false);
         }
@@ -797,7 +799,7 @@ function QBankInner() {
             if (!authReadyRef.current) {
                 earlyAnswersRef.current.push(entry);
             } else {
-                showToast('প্রোগ্রেস সেভ করতে দয়া করে লগইন করুন।');
+                showToast(t('প্রোগ্রেস সেভ করতে দয়া করে লগইন করুন।', 'Please log in to save your progress.'));
             }
             return;
         }
@@ -835,10 +837,10 @@ function QBankInner() {
                 <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4 px-0.5">
                     <div>
                         <h1 className="text-sm sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                            MCQ Question Bank
+                            {t('MCQ প্রশ্নব্যাংক', 'MCQ Question Bank')}
                         </h1>
                         <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate max-w-[160px] sm:max-w-md">
-                            {activeFilters.subject || 'সকল বিষয়'} {activeFilters.chapter ? `• ${activeFilters.chapter}` : ''}
+                            {activeFilters.subject || t('সকল বিষয়', 'All subjects')} {activeFilters.chapter ? `• ${activeFilters.chapter}` : ''}
                         </p>
                     </div>
 
@@ -847,29 +849,29 @@ function QBankInner() {
                             onClick={() => setMode('practice')}
                             className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg font-bold text-[11px] sm:text-sm transition-all cursor-pointer ${mode === 'practice' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
                         >
-                            Practice
+                            {t('প্র্যাকটিস', 'Practice')}
                         </button>
                         <button
                             onClick={() => setMode('solve')}
                             className={`px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg font-bold text-[11px] sm:text-sm transition-all cursor-pointer ${mode === 'solve' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
                         >
-                            Solve
+                            {t('সমাধান', 'Solve')}
                         </button>
                     </div>
                 </div>
 
                 <div className="mb-3.5 sm:mb-5 bg-white dark:bg-[#0c1322] p-2.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3">
-                        <CustomDropdown options={availableSubjects} value={filters.subject} onChange={(val: string) => handleFilterChange('subject', val)} placeholder="সব বিষয়" />
-                        <CustomDropdown options={availableChapters} value={filters.chapter} onChange={(val: string) => handleFilterChange('chapter', val)} placeholder="সব অধ্যায়" />
-                        <CustomDropdown options={availableTopics} value={filters.topic} onChange={(val: string) => handleFilterChange('topic', val)} placeholder="সব টপিক" />
-                        <CustomDropdown options={availableSources} value={filters.source} onChange={(val: string) => handleFilterChange('source', val)} placeholder="সব উৎস" />
+                        <CustomDropdown options={availableSubjects} value={filters.subject} onChange={(val: string) => handleFilterChange('subject', val)} placeholder={t('সব বিষয়', 'All subjects')} />
+                        <CustomDropdown options={availableChapters} value={filters.chapter} onChange={(val: string) => handleFilterChange('chapter', val)} placeholder={t('সব অধ্যায়', 'All chapters')} />
+                        <CustomDropdown options={availableTopics} value={filters.topic} onChange={(val: string) => handleFilterChange('topic', val)} placeholder={t('সব টপিক', 'All topics')} />
+                        <CustomDropdown options={availableSources} value={filters.source} onChange={(val: string) => handleFilterChange('source', val)} placeholder={t('সব উৎস', 'All sources')} />
                     </div>
 
                     {showAdvanced && (
                         <div className="grid grid-cols-2 gap-1.5 sm:gap-3 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                            <CustomDropdown options={varsityList} value={filters.varsity} onChange={(val: string) => handleFilterChange('varsity', val)} placeholder="সব ভার্সিটি" />
-                            <CustomDropdown options={yearList} value={filters.year} onChange={(val: string) => handleFilterChange('year', val)} placeholder="সকল শিক্ষাবর্ষ (সাল)" />
+                            <CustomDropdown options={varsityList} value={filters.varsity} onChange={(val: string) => handleFilterChange('varsity', val)} placeholder={t('সব ভার্সিটি', 'All universities')} />
+                            <CustomDropdown options={yearList} value={filters.year} onChange={(val: string) => handleFilterChange('year', val)} placeholder={t('সকল শিক্ষাবর্ষ (সাল)', 'All sessions (year)')} />
                         </div>
                     )}
 
@@ -880,7 +882,7 @@ function QBankInner() {
                                 className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-80 flex items-center gap-1 cursor-pointer select-none"
                             >
                                 <SlidersHorizontal size={12} />
-                                <span>{showAdvanced ? 'অ্যাডভান্সড বন্ধ' : 'অ্যাডভান্সড ফিল্টার'}</span>
+                                <span>{showAdvanced ? t('অ্যাডভান্সড বন্ধ', 'Hide advanced') : t('অ্যাডভান্সড ফিল্টার', 'Advanced filters')}</span>
                                 {(filters.varsity || filters.year) && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                                 )}
@@ -892,7 +894,7 @@ function QBankInner() {
                                     className="text-[10px] sm:text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer"
                                 >
                                     <RotateCcw size={11} />
-                                    <span>রিসেট</span>
+                                    <span>{t('রিসেট', 'Reset')}</span>
                                 </button>
                             )}
                         </div>
@@ -902,7 +904,7 @@ function QBankInner() {
                             className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-[11px] sm:text-xs md:text-sm font-bold shadow-xs transition-all cursor-pointer"
                         >
                             <Search size={12} className="shrink-0" />
-                            <span>ফিল্টার করুন</span>
+                            <span>{t('ফিল্টার করুন', 'Apply filters')}</span>
                         </button>
                     </div>
                 </div>
@@ -910,7 +912,7 @@ function QBankInner() {
                 <div className="space-y-3 sm:space-y-4">
                     {questions.length === 0 && !loading && !loadError ? (
                         <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-                            কোনো প্রশ্ন পাওয়া যায়নি। ফিল্টার পরিবর্তন করে দেখুন।
+                            {t('কোনো প্রশ্ন পাওয়া যায়নি। ফিল্টার পরিবর্তন করে দেখুন।', 'No questions found. Try other filters.')}
                         </div>
                     ) : (
                         questions.map((q, index) => {
@@ -968,7 +970,7 @@ function QBankInner() {
                                             <button
                                                 onClick={() => setReportingQuestion(q)}
                                                 className="p-1.5 rounded-xl text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                                title="প্রশ্নটি রিপোর্ট করুন"
+                                                title={t('প্রশ্নটি রিপোর্ট করুন', 'Report this question')}
                                             >
                                                 <Flag size={14} />
                                             </button>
@@ -978,7 +980,7 @@ function QBankInner() {
                                                     ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40'
                                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                                                     }`}
-                                                title={isBookmarked ? 'বুকমার্ক সরান' : 'বুকমার্ক করুন'}
+                                                title={isBookmarked ? t('বুকমার্ক সরান', 'Remove bookmark') : t('বুকমার্ক করুন', 'Bookmark')}
                                             >
                                                 <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
                                             </button>
@@ -1044,7 +1046,7 @@ function QBankInner() {
                                             <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                                                 <Lightbulb size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                                                 <div>
-                                                    <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1">ব্যাখ্যা:</span>
+                                                    <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1">{t('ব্যাখ্যা:', 'Explanation:')}</span>
                                                     <RenderTextOrMath text={q.explanation} />
                                                 </div>
                                             </div>
@@ -1063,13 +1065,13 @@ function QBankInner() {
 
                     {loadError && !loading && (
                         <div className="bg-white dark:bg-slate-900 p-5 text-center rounded-2xl border border-rose-200 dark:border-rose-900/40 text-slate-600 dark:text-slate-300 text-xs sm:text-sm space-y-2.5">
-                            <p>প্রশ্ন লোড করা যায়নি। ইন্টারনেট কানেকশন চেক করুন।</p>
+                            <p>{t('প্রশ্ন লোড করা যায়নি। ইন্টারনেট কানেকশন চেক করুন।', 'Could not load questions. Check your internet connection.')}</p>
                             <button
                                 type="button"
                                 onClick={handleRetry}
                                 className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer"
                             >
-                                আবার চেষ্টা করুন
+                                {t('আবার চেষ্টা করুন', 'Try again')}
                             </button>
                         </div>
                     )}
@@ -1087,11 +1089,11 @@ function QBankInner() {
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center gap-2 text-amber-500 font-bold text-sm sm:text-base">
                             <AlertCircle size={18} />
-                            <span>প্রশ্নে কোনো ভুল পেয়েছেন?</span>
+                            <span>{t('প্রশ্নে কোনো ভুল পেয়েছেন?', 'Found a mistake in this question?')}</span>
                         </div>
 
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                            দ্রুত সিলেক্ট করতে নিচের পয়েন্টগুলোতে ক্লিক করুন অথবা বিস্তারিত লিখুন:
+                            {t('দ্রুত সিলেক্ট করতে নিচের পয়েন্টগুলোতে ক্লিক করুন অথবা বিস্তারিত লিখুন:', 'Tap a reason below or write the details:')}
                         </p>
 
                         <div className="flex flex-wrap gap-1 pt-0.5">
@@ -1116,7 +1118,7 @@ function QBankInner() {
                         <textarea
                             value={reportReason}
                             onChange={(e) => setReportReason(e.target.value)}
-                            placeholder="যেমন: সঠিক উত্তর C হবে, কিন্তু B দেওয়া আছে..."
+                            placeholder={t('যেমন: সঠিক উত্তর C হবে, কিন্তু B দেওয়া আছে...', 'e.g. The answer should be C, but B is marked...')}
                             className="w-full h-20 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 transition-colors resize-none"
                         />
 
@@ -1126,7 +1128,7 @@ function QBankInner() {
                                 onClick={() => { setReportingQuestion(null); setReportReason(''); }}
                                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                             >
-                                বাতিল
+                                {t('বাতিল', 'Cancel')}
                             </button>
                             <button
                                 type="button"
@@ -1134,7 +1136,7 @@ function QBankInner() {
                                 disabled={reportSubmitting || !reportReason.trim()}
                                 className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer"
                             >
-                                {reportSubmitting ? 'জমা হচ্ছে...' : 'রিপোর্ট পাঠান'}
+                                {reportSubmitting ? t('জমা হচ্ছে...', 'Sending...') : t('রিপোর্ট পাঠান', 'Send report')}
                             </button>
                         </div>
                     </div>

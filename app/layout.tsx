@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { PLATFORMS, isClassroomHost } from '@/lib/platform';
 import { currentPlatform } from '@/lib/currentPlatform';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import CourseProvider from '@/components/CourseProvider';
 import AppShell from '@/components/AppShell';
+import { LangProvider } from '@/lib/i18n';
+import { LANG_COOKIE, type Lang } from '@/lib/langCookie';
 
 export const viewport: Viewport = {
   themeColor: '#059669',
@@ -41,8 +43,10 @@ export default async function RootLayout({
   // ক্লাসরুমে লগইন আর কোর্স যাচাইয়ের আগে পেজ দেখানো হয় না (নইলে হোম এক ঝলক দেখিয়ে লগইনে যায়)
   const h = await headers();
   const classroom = isClassroomHost(h.get('x-forwarded-host') || h.get('host'));
+  // ছাত্রের বাছাই করা ভাষা (প্রোফাইল থেকে বদলায়), প্রথম থেকেই সেই ভাষায় পেজ
+  const lang: Lang = (await cookies()).get(LANG_COOKIE)?.value === 'en' ? 'en' : 'bn';
   return (
-    <html lang="bn" suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -62,7 +66,9 @@ export default async function RootLayout({
       </head>
       <body className="bg-slate-50 dark:bg-[#0B1120] min-h-screen antialiased">
         <ThemeProvider>
-          <CourseProvider classroom={classroom}><AppShell>{children}</AppShell></CourseProvider>
+          <LangProvider initial={lang}>
+            <CourseProvider classroom={classroom}><AppShell>{children}</AppShell></CourseProvider>
+          </LangProvider>
         </ThemeProvider>
       </body>
     </html>

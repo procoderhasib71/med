@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useLang } from '@/lib/i18n';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 import { authFetch } from '@/lib/authFetch';
 import { COURSES, type CourseId } from '@/lib/courses';
@@ -22,6 +23,7 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
     const [status, setStatus] = useState<'loading' | 'in' | 'out' | 'error'>('loading');
     const [msg, setMsg] = useState<Msg>(null);
     const [busy, setBusy] = useState('');
+    const { t } = useLang();
 
     const load = useCallback(async () => {
         const r = await authFetch('/api/profile', { cache: 'no-store' }).catch(() => null);
@@ -32,7 +34,7 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
         }
         const d = r ? await r.json().catch(() => ({})) : {};
         if (!d.success) {
-            setMsg({ ok: false, text: d.error || `সার্ভার ${r?.status ?? 'পাওয়া যায়নি'}` });
+            setMsg({ ok: false, text: d.error || `${t('সার্ভার', 'Server')} ${r?.status ?? t('পাওয়া যায়নি', 'unreachable')}` });
             setStatus('error');
             return null;
         }
@@ -40,7 +42,7 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
         setPlatforms(d.platforms);
         setStatus('in');
         return d as { profile: Profile; platforms: Platform[] };
-    }, [redirectIfLoggedOut]);
+    }, [redirectIfLoggedOut, t]);
 
     // Firebase এর লগইন ফিরে আসার পরে লোড (নইলে টোকেন ছাড়া 401)
     useEffect(() => onAuthStateChanged(session, () => { load(); }), [load]);
@@ -50,8 +52,9 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
         const d = await post('/api/enroll', { platform: id });
         if (d.success) {
             await load();
-            setMsg({ ok: true, text: `${COURSES.find((c) => c.id === id)?.name} কোর্সটি নেওয়া হয়েছে, ক্লাসরুমে এটাই চালু` });
-        } else setMsg({ ok: false, text: d.error || 'কোর্স নেওয়া যায়নি' });
+            const c = COURSES.find((x) => x.id === id);
+            setMsg({ ok: true, text: t(`${c?.name} কোর্সটি নেওয়া হয়েছে, ক্লাসরুমে এটাই চালু`, `${c?.title} added and opened in your classroom`) });
+        } else setMsg({ ok: false, text: d.error || t('কোর্স নেওয়া যায়নি', 'Could not add the course') });
         setBusy('');
         return Boolean(d.success);
     };
@@ -61,7 +64,7 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
         setBusy(`open-${id}`);
         const d = await post('/api/course', { platform: id });
         if (d.success) window.location.assign('/');
-        else { setMsg({ ok: false, text: d.error || 'কোর্স চালু করা যায়নি' }); setBusy(''); }
+        else { setMsg({ ok: false, text: d.error || t('কোর্স চালু করা যায়নি', 'Could not open the course') }); setBusy(''); }
     };
 
     const saveName = async (name: string) => {
@@ -71,24 +74,24 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
             if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: name.trim() }).catch(() => null);
             setProfile((p) => (p ? { ...p, name: name.trim() } : p));
         }
-        setMsg(d.success ? { ok: true, text: 'নাম সেভ হয়েছে' } : { ok: false, text: d.error || 'সেভ হয়নি' });
+        setMsg(d.success ? { ok: true, text: t('নাম সেভ হয়েছে', 'Name saved') } : { ok: false, text: d.error || t('সেভ হয়নি', 'Not saved') });
         setBusy('');
     };
 
     const changePassword = async (current: string, next: string, again: string) => {
         const user = auth.currentUser;
-        if (!user || !profile?.phone) { setMsg({ ok: false, text: 'পাসওয়ার্ড বদলাতে লগআউট করে আবার লগইন করুন।' }); return false; }
-        if (next.length < 6) { setMsg({ ok: false, text: 'নতুন পাসওয়ার্ড অন্তত ৬ অক্ষরের দিন।' }); return false; }
-        if (next !== again) { setMsg({ ok: false, text: 'দুই জায়গার নতুন পাসওয়ার্ড মেলেনি।' }); return false; }
+        if (!user || !profile?.phone) { setMsg({ ok: false, text: t('পাসওয়ার্ড বদলাতে লগআউট করে আবার লগইন করুন।', 'Log out and log in again to change the password.') }); return false; }
+        if (next.length < 6) { setMsg({ ok: false, text: t('নতুন পাসওয়ার্ড অন্তত ৬ অক্ষরের দিন।', 'Use at least 6 characters for the new password.') }); return false; }
+        if (next !== again) { setMsg({ ok: false, text: t('দুই জায়গার নতুন পাসওয়ার্ড মেলেনি।', 'The two new passwords do not match.') }); return false; }
         setBusy('pw');
         try {
             await reauthenticateWithCredential(user, EmailAuthProvider.credential(phoneEmail(profile.phone), current));
             await updatePassword(user, next);
-            setMsg({ ok: true, text: 'পাসওয়ার্ড বদলানো হয়েছে, সব কোর্সে নতুনটা চলবে' });
+            setMsg({ ok: true, text: t('পাসওয়ার্ড বদলানো হয়েছে, সব কোর্সে নতুনটা চলবে', 'Password changed for every course') });
             return true;
         } catch (err) {
             const c = String((err as { code?: string })?.code || '');
-            setMsg({ ok: false, text: c === 'auth/invalid-credential' || c === 'auth/wrong-password' ? 'এখনকার পাসওয়ার্ড ভুল।' : `বদলানো যায়নি (${c})` });
+            setMsg({ ok: false, text: c === 'auth/invalid-credential' || c === 'auth/wrong-password' ? t('এখনকার পাসওয়ার্ড ভুল।', 'Current password is wrong.') : `${t('বদলানো যায়নি', 'Could not change')} (${c})` });
             return false;
         } finally {
             setBusy('');
@@ -97,7 +100,7 @@ export function useAccount({ redirectIfLoggedOut = true } = {}) {
 
     const linkCode = async () => {
         const d = await post('/api/me/link-code', {});
-        if (!d.success) setMsg({ ok: false, text: d.error || 'কোড বানানো যায়নি' });
+        if (!d.success) setMsg({ ok: false, text: d.error || t('কোড বানানো যায়নি', 'Could not create a code') });
         return d.success ? String(d.code) : '';
     };
 
@@ -114,7 +117,7 @@ export type Account = ReturnType<typeof useAccount>;
 export const bn = (v: number | string) => String(v).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)]);
 export const pct = (p: { attempted: number; correct: number }) => (p.attempted ? Math.round((p.correct * 100) / p.attempted) : 0);
 export const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || 'A';
-export const showDate = (iso: string) => {
+export const showDate = (iso: string, lang: 'bn' | 'en' = 'bn') => {
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
 };

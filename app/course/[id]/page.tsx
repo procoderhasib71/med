@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import { useLang } from '@/lib/i18n';
 import BrandLoader from '@/components/BrandLoader';
 import { authFetch } from '@/lib/authFetch';
 import { isPlatform } from '@/lib/platform';
@@ -11,6 +12,7 @@ import { onAuthStateChanged, session } from '@/lib/session';
 export default function CourseShortcut({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [error, setError] = useState('');
+    const { t } = useLang();
 
     useEffect(() => onAuthStateChanged(session, async (user) => {
         const raw = new URLSearchParams(window.location.search).get('to') || '/';
@@ -20,9 +22,9 @@ export default function CourseShortcut({ params }: { params: Promise<{ id: strin
         const r = await authFetch('/api/course', { method: 'POST', body: JSON.stringify({ platform: id }) });
         if (r.ok) return window.location.replace(to);
         if (r.status === 403) return window.location.replace(`/profile?enroll=${id}`);
-        setError('কোর্স চালু করা যায়নি, আবার চেষ্টা করুন।');
-    }), [id]);
+        setError(t('কোর্স চালু করা যায়নি, আবার চেষ্টা করুন।', 'Could not open the course. Please try again.'));
+    }), [id, t]);
 
-    if (!error) return <BrandLoader text="কোর্স চালু হচ্ছে..." />;
+    if (!error) return <BrandLoader text={t('কোর্স চালু হচ্ছে...', 'Opening course...')} />;
     return <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-slate-500">{error}</div>;
 }

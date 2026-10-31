@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLang } from '@/lib/i18n';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw } from 'lucide-react';
 import { getMe, listModelTests } from '@/lib/siteApi';
@@ -16,7 +17,6 @@ type Stats = { name: string; attempted: number; correct: number; score: number; 
 type Subject = { subject: string; count: number };
 type Test = { id: string; title: string; subject: string; duration: number; questions: number; negative: number };
 
-const bn = (v: number | string) => String(v).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)]);
 const card = 'rounded-2xl bg-white dark:bg-[#111A2E] border border-slate-200/80 dark:border-slate-800';
 // বিষয়ের কার্ডের রং পালাক্রমে
 const TONES = [
@@ -41,6 +41,8 @@ function SectionTitle({ icon: Icon, title, link }: { icon: typeof BookOpen; titl
 
 export default function ClassroomHome() {
     const { info } = useCourse();
+    const { t, n } = useLang();
+    const bn = n;
     const course = COURSES.find((c) => c.id === (info?.current || 'med'))!;
     const [stats, setStats] = useState<Stats | null>(null);
     const [subjects, setSubjects] = useState<Subject[] | null>(null);
@@ -55,20 +57,20 @@ export default function ClassroomHome() {
                                score: Number((me.totalScore || 0).toFixed(2)), mistakes: me.mistakeCount || 0, bookmarks: me.bookmarks.length });
         });
         fetch('/api/subjects', { cache: 'no-store' }).then((r) => r.json()).then((d) => setSubjects(d.subjects || [])).catch(() => setSubjects([]));
-        listModelTests(4).then((list) => setTests(list.map((t) => {
-            const qs = Array.isArray(t.questions) ? t.questions.length : 0;
-            return { id: String(t.id), title: t.title || 'মডেল টেস্ট', subject: t.subject || 'সমন্বিত', duration: Number(t.duration_minutes) || 25,
-                     questions: Number(t.total_questions) || qs, negative: Number(t.negative_marking) || 0.25 };
+        listModelTests(4).then((list) => setTests(list.map((mt) => {
+            const qs = Array.isArray(mt.questions) ? mt.questions.length : 0;
+            return { id: String(mt.id), title: mt.title || 'মডেল টেস্ট', subject: mt.subject || 'সমন্বিত', duration: Number(mt.duration_minutes) || 25,
+                     questions: Number(mt.total_questions) || qs, negative: Number(mt.negative_marking) || 0.25 };
         }))).catch(() => setTests([]));
         return stop;
     }, []);
 
     const accuracy = stats && stats.attempted ? Math.round((stats.correct * 100) / stats.attempted) : 0;
     const actions = [
-        { href: '/qbank', icon: BookOpen, title: 'MCQ প্র্যাকটিস', hint: 'অধ্যায় আর সাল ধরে', tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10', badge: 0 },
-        { href: '/model-test', icon: ClipboardList, title: 'মডেল টেস্ট', hint: 'সময় ধরে পরীক্ষা', tone: 'text-blue-600 dark:text-blue-400 bg-blue-500/10', badge: 0 },
-        { href: '/mistakes', icon: RefreshCw, title: 'ভুল প্রশ্ন', hint: 'আবার ঝালিয়ে নিন', tone: 'text-orange-600 dark:text-orange-400 bg-orange-500/10', badge: stats?.mistakes || 0 },
-        { href: '/bookmarks', icon: Bookmark, title: 'বুকমার্ক', hint: 'দাগ দেওয়া প্রশ্ন', tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10', badge: stats?.bookmarks || 0 },
+        { href: '/qbank', icon: BookOpen, title: t('MCQ প্র্যাকটিস', 'MCQ practice'), hint: t('অধ্যায় আর সাল ধরে', 'By chapter and year'), tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10', badge: 0 },
+        { href: '/model-test', icon: ClipboardList, title: t('মডেল টেস্ট', 'Model tests'), hint: t('সময় ধরে পরীক্ষা', 'Timed exams'), tone: 'text-blue-600 dark:text-blue-400 bg-blue-500/10', badge: 0 },
+        { href: '/mistakes', icon: RefreshCw, title: t('ভুল প্রশ্ন', 'Mistakes'), hint: t('আবার ঝালিয়ে নিন', 'Revise them again'), tone: 'text-orange-600 dark:text-orange-400 bg-orange-500/10', badge: stats?.mistakes || 0 },
+        { href: '/bookmarks', icon: Bookmark, title: t('বুকমার্ক', 'Bookmarks'), hint: t('দাগ দেওয়া প্রশ্ন', 'Saved questions'), tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10', badge: stats?.bookmarks || 0 },
     ];
 
     return (
@@ -80,15 +82,15 @@ export default function ClassroomHome() {
                     <div className="flex items-center gap-3 min-w-0 md:flex-1">
                         <CourseAvatar className="w-11 h-11" />
                         <div className="min-w-0">
-                            <h1 className="text-base sm:text-lg font-black truncate">স্বাগতম{stats?.name ? `, ${stats.name}` : ''}</h1>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{course.name} • আজকের প্রস্তুতি শুরু করুন</p>
+                            <h1 className="text-base sm:text-lg font-black truncate">{t('স্বাগতম', 'Welcome')}{stats?.name ? `, ${stats.name}` : ''}</h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t(course.name, course.title)} • {t('আজকের প্রস্তুতি শুরু করুন', 'Start today’s practice')}</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-3 divide-x divide-slate-200 dark:divide-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/60 py-2 md:w-[19rem]">
                         {[
-                            { value: bn(stats?.attempted ?? 0), label: 'মোট উত্তর' },
-                            { value: `${bn(accuracy)}%`, label: 'সঠিকের হার' },
-                            { value: bn(stats?.score ?? 0), label: 'স্কোর' },
+                            { value: bn(stats?.attempted ?? 0), label: t('মোট উত্তর', 'Answered') },
+                            { value: `${bn(accuracy)}%`, label: t('সঠিকের হার', 'Accuracy') },
+                            { value: bn(stats?.score ?? 0), label: t('স্কোর', 'Score') },
                         ].map((x) => (
                             <div key={x.label} className="text-center px-2">
                                 <div className="text-base font-black">{x.value}</div>
@@ -98,10 +100,10 @@ export default function ClassroomHome() {
                     </div>
                     <div className="grid grid-cols-2 md:flex gap-2 shrink-0">
                         <Link href="/qbank" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors">
-                            <Play size={13} fill="currentColor" /> প্র্যাকটিস
+                            <Play size={13} fill="currentColor" /> {t('প্র্যাকটিস', 'Practice')}
                         </Link>
                         <Link href="/model-test" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-sm font-bold transition-colors">
-                            মডেল টেস্ট <ArrowRight size={14} />
+                            {t('মডেল টেস্ট', 'Model test')} <ArrowRight size={14} />
                         </Link>
                     </div>
                 </section>
@@ -123,7 +125,7 @@ export default function ClassroomHome() {
                 <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
                     {/* বিষয়ভিত্তিক প্রস্তুতি (চালু কোর্সের, DB থেকে) */}
                     <section className="lg:col-span-2">
-                        <SectionTitle icon={BookOpen} title="বিষয়ভিত্তিক প্রস্তুতি" link={{ href: '/qbank', text: 'সব প্রশ্ন' }} />
+                        <SectionTitle icon={BookOpen} title={t('বিষয়ভিত্তিক প্রস্তুতি', 'Practice by subject')} link={{ href: '/qbank', text: t('সব প্রশ্ন', 'All questions') }} />
                         {subjects === null ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`${card} h-[74px] animate-pulse`} />)}
@@ -131,8 +133,8 @@ export default function ClassroomHome() {
                         ) : subjects.length === 0 ? (
                             <div className={`${card} p-8 text-center`}>
                                 <div className="text-3xl">⏳</div>
-                                <p className="mt-2 font-bold">{course.name} এর প্রশ্ন শীঘ্রই আসছে</p>
-                                <p className="text-sm text-slate-500 mt-1">প্রশ্ন যোগ হলেই এখানে বিষয়গুলো দেখাবে।</p>
+                                <p className="mt-2 font-bold">{t(`${course.name} এর প্রশ্ন শীঘ্রই আসছে`, `${course.title} questions are coming soon`)}</p>
+                                <p className="text-sm text-slate-500 mt-1">{t('প্রশ্ন যোগ হলেই এখানে বিষয়গুলো দেখাবে।', 'Subjects will appear here once questions are added.')}</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -141,8 +143,8 @@ export default function ClassroomHome() {
                                         className={`${card} group flex items-center gap-3 p-3 sm:p-3.5 hover:border-emerald-500/50 hover:shadow-md transition-all`}>
                                         <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${TONES[i % TONES.length]}`}><BookOpen size={18} /></span>
                                         <span className="min-w-0 flex-1">
-                                            <span className="block text-[13px] sm:text-sm font-extrabold truncate">{s.subject === 'English' ? 'ইংরেজি' : s.subject}</span>
-                                            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{bn(s.count)} প্রশ্ন</span>
+                                            <span className="block text-[13px] sm:text-sm font-extrabold truncate">{s.subject === 'English' ? t('ইংরেজি', 'English') : s.subject}</span>
+                                            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{bn(s.count)} {t('প্রশ্ন', 'questions')}</span>
                                         </span>
                                         <ChevronRight size={15} className="text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 shrink-0 hidden sm:block" />
                                     </Link>
@@ -159,9 +161,9 @@ export default function ClassroomHome() {
                                 className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer">
                                 <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0"><ClipboardList size={19} /></span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block font-black">মডেল টেস্ট</span>
+                                    <span className="block font-black">{t('মডেল টেস্ট', 'Model tests')}</span>
                                     <span className="block text-xs text-slate-500 dark:text-slate-400">
-                                        {tests === null ? 'লোড হচ্ছে...' : tests.length ? `${bn(tests.length)}টা সাম্প্রতিক টেস্ট` : 'এখনো কোনো টেস্ট নেই'}
+                                        {tests === null ? t('লোড হচ্ছে...', 'Loading...') : tests.length ? t(`${bn(tests.length)}টা সাম্প্রতিক টেস্ট`, `${bn(tests.length)} recent tests`) : t('এখনো কোনো টেস্ট নেই', 'No tests yet')}
                                     </span>
                                 </span>
                                 <ChevronDown size={18} className={`text-slate-400 shrink-0 transition-transform duration-200 ${testsOpen ? 'rotate-180' : ''}`} />
@@ -171,33 +173,33 @@ export default function ClassroomHome() {
                                 {tests === null ? (
                                     Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl bg-slate-100 dark:bg-slate-800 h-[76px] animate-pulse" />)
                                 ) : tests.length === 0 ? (
-                                    <div className="p-4 text-center text-sm text-slate-500">এখনো কোনো মডেল টেস্ট নেই।</div>
-                                ) : tests.map((t) => (
-                                    <div key={t.id} className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 flex items-center gap-3">
+                                    <div className="p-4 text-center text-sm text-slate-500">{t('এখনো কোনো মডেল টেস্ট নেই।', 'No model tests yet.')}</div>
+                                ) : tests.map((test) => (
+                                    <div key={test.id} className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 flex items-center gap-3">
                                         <div className="min-w-0 flex-1">
-                                            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">{t.subject}</span>
-                                            <h3 className="mt-1.5 text-sm font-extrabold truncate">{t.title}</h3>
-                                            <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{bn(t.questions)} প্রশ্ন • {bn(t.duration)} মিনিট • <span className="text-rose-500 font-bold">-{bn(t.negative)}</span></p>
+                                            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">{test.subject}</span>
+                                            <h3 className="mt-1.5 text-sm font-extrabold truncate">{test.title}</h3>
+                                            <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{bn(test.questions)} {t('প্রশ্ন', 'Qs')} • {bn(test.duration)} {t('মিনিট', 'min')} • <span className="text-rose-500 font-bold">-{bn(test.negative)}</span></p>
                                         </div>
-                                        <Link href={`/model-test/exam?testId=${encodeURIComponent(t.id)}&title=${encodeURIComponent(t.title)}&duration=${t.duration}`}
+                                        <Link href={`/model-test/exam?testId=${encodeURIComponent(test.id)}&title=${encodeURIComponent(test.title)}&duration=${test.duration}`}
                                             className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
-                                            <Play size={12} fill="currentColor" /> শুরু
+                                            <Play size={12} fill="currentColor" /> {t('শুরু', 'Start')}
                                         </Link>
                                     </div>
                                 ))}
                                 <Link href="/model-test" className="flex items-center justify-center gap-1 pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                    সব মডেল টেস্ট দেখুন <ChevronRight size={14} />
+                                    {t('সব মডেল টেস্ট দেখুন', 'See all model tests')} <ChevronRight size={14} />
                                 </Link>
                             </div>
                             )}
                         </section>
 
                         <section className={`${card} p-5`}>
-                            <h3 className="font-black text-sm mb-3">শীঘ্রই আসছে</h3>
+                            <h3 className="font-black text-sm mb-3">{t('শীঘ্রই আসছে', 'Coming soon')}</h3>
                             <div className="space-y-3">
                                 {[
-                                    { icon: FileText, title: 'লেকচার শিট ও PDF নোট', tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' },
-                                    { icon: PlayCircle, title: 'ভিডিও ক্লাস', tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
+                                    { icon: FileText, title: t('লেকচার শিট ও PDF নোট', 'Lecture sheets & PDF notes'), tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' },
+                                    { icon: PlayCircle, title: t('ভিডিও ক্লাস', 'Video classes'), tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
                                 ].map((x) => (
                                     <div key={x.title} className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
                                         <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${x.tone}`}><x.icon size={17} /></span>

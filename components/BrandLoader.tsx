@@ -1,8 +1,13 @@
+'use client';
+
+import { useLang } from '@/lib/i18n';
+
 // অপেক্ষার সময় পুরো পর্দায় AdMCQ এর লোগো, চারপাশে ঘুরতে থাকা রঙিন বৃত্ত
 // (ক্লাসরুমে লগইন/কোর্স যাচাই, লগইন পেজে আগে থেকে লগইন আছে কিনা দেখা, প্রোফাইল লোড)
 export default function BrandLoader({ text = '' }: { text?: string }) {
+    const { t } = useLang();
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-[#F8FAFC] dark:bg-[#0B1120]" role="status" aria-label="লোড হচ্ছে">
+        <div className="min-h-screen flex flex-col items-center justify-center gap-5 bg-[#F8FAFC] dark:bg-[#0B1120]" role="status" aria-label={t('লোড হচ্ছে', 'Loading')}>
             <div className="relative w-20 h-20">
                 {/* ঘুরন্ত বৃত্ত: conic gradient এর মাঝখানটা পেজের রঙে ঢাকা */}
                 <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,transparent_0%,#10b981_45%,#3b82f6_80%,transparent_100%)] animate-spin [animation-duration:1.1s]" />

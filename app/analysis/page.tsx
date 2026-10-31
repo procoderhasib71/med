@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLang } from '@/lib/i18n';
 import CourseTag from '@/components/CourseTag';
 import { useRouter } from 'next/navigation';
 import {
@@ -39,6 +40,7 @@ interface SubjectStat {
 }
 
 export default function AnalysisPage() {
+    const { t, n, lang } = useLang();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -216,14 +218,14 @@ export default function AnalysisPage() {
             </Link>
             <div>
               <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                পারফরম্যান্স অ্যানালাইসিস
+                {t('পারফরম্যান্স অ্যানালাইসিস', 'Performance analysis')}
               </h1>
               <CourseTag />
             </div>
           </div>
 
           <Link href="/mistakes" className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold text-xs hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-all border border-orange-200/60 dark:border-orange-800/60">
-            ভুল প্রশ্নসমূহ <ExternalLink size={13} />
+            {lang === 'en' ? <>Mistakes <ExternalLink size={13} /></> : <>ভুল প্রশ্নসমূহ <ExternalLink size={13} /></>}
           </Link>
         </div>
       </header>
@@ -232,7 +234,7 @@ export default function AnalysisPage() {
         {loading ? (
           <div className="py-24 text-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-sm font-semibold text-slate-500">আপনার ডাটা বিশ্লেষণ করা হচ্ছে...</p>
+            <p className="text-sm font-semibold text-slate-500">{t('আপনার ডাটা বিশ্লেষণ করা হচ্ছে...', 'Analysing your data...')}</p>
           </div>
         ) : (
           <>
@@ -249,20 +251,20 @@ export default function AnalysisPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400 truncate">
-                        প্রস্তুতি সতর্কতা: অ্যাকুরেসি আশঙ্কাজনক ({overallAccuracy}%)
+                        {lang === 'en' ? <>Warning: accuracy is low ({overallAccuracy}%)</> : <>প্রস্তুতি সতর্কতা: অ্যাকুরেসি আশঙ্কাজনক ({overallAccuracy}%)</>}
                       </h4>
                       <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
-                        {weakSubjects.length}টি দুর্বল বিষয়
+                        {lang === 'en' ? <>{weakSubjects.length} weak subject(s)</> : <>{weakSubjects.length}টি দুর্বল বিষয়</>}
                       </span>
                     </div>
                     <p className="text-[11px] sm:text-xs text-rose-700/80 dark:text-rose-300/80 truncate">
-                      নেগেটিভ মার্কিং এড়াতে বিস্তারিত বিশ্লেষণ ও জরুরি পরামর্শ দেখুন
+                      {t('নেগেটিভ মার্কিং এড়াতে বিস্তারিত বিশ্লেষণ ও জরুরি পরামর্শ দেখুন', 'See a detailed analysis and tips to avoid negative marking')}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 shrink-0 ml-2 group-hover:translate-x-0.5 transition-transform">
-                  <span>পরামর্শ দেখুন</span>
+                  <span>{t('পরামর্শ দেখুন', 'See tips')}</span>
                   <ChevronRight size={15} />
                 </div>
               </div>
@@ -272,34 +274,34 @@ export default function AnalysisPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs">
                 <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-2">
-                  <HelpCircle size={15} className="text-blue-500" /> মোট অনুশীলন
+                  <HelpCircle size={15} className="text-blue-500" /> {t('মোট অনুশীলন', 'Total practised')}
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                  {totalAttempted} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span>
+                  {lang === 'en' ? <>{totalAttempted}</> : <>{totalAttempted} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span></>}
                 </div>
               </div>
 
               <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs">
                 <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-2">
-                  <CheckCircle2 size={15} className="text-emerald-500" /> সঠিক উত্তর
+                  <CheckCircle2 size={15} className="text-emerald-500" /> {t('সঠিক উত্তর', 'Correct')}
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                  {totalCorrect} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span>
+                  {lang === 'en' ? <>{totalCorrect}</> : <>{totalCorrect} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span></>}
                 </div>
               </div>
 
               <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs">
                 <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-2">
-                  <XCircle size={15} className="text-rose-500" /> ভুল উত্তর
+                  <XCircle size={15} className="text-rose-500" /> {t('ভুল উত্তর', 'Wrong')}
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">
-                  {totalWrong} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span>
+                  {lang === 'en' ? <>{totalWrong}</> : <>{totalWrong} <span className="text-xs sm:text-sm font-medium text-slate-400">টি</span></>}
                 </div>
               </div>
 
               <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs">
                 <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-2">
-                  <Award size={15} className="text-amber-500" /> মোট পয়েন্ট
+                  <Award size={15} className="text-amber-500" /> {t('মোট পয়েন্ট', 'Total points')}
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
                   {totalScore}
@@ -315,15 +317,15 @@ export default function AnalysisPage() {
                     <BookOpen size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold">বিষয় ও অধ্যায়ভিত্তিক দক্ষতা</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">অধ্যায়ভিত্তিক রিপোর্ট দেখতে বিষয়ের ওপর ট্যাপ করুন</p>
+                    <h3 className="text-sm sm:text-base font-bold">{t('বিষয় ও অধ্যায়ভিত্তিক দক্ষতা', 'Skill by subject and chapter')}</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('অধ্যায়ভিত্তিক রিপোর্ট দেখতে বিষয়ের ওপর ট্যাপ করুন', 'Tap a subject to see its chapters')}</p>
                   </div>
                 </div>
               </div>
 
               {subjectProgressList.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 text-xs sm:text-sm">
-                  এখনও কোনো বিষয়ের অনুশীলন শুরু করা হয়নি।
+                  {t('এখনও কোনো বিষয়ের অনুশীলন শুরু করা হয়নি।', 'No subject practised yet.')}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -371,9 +373,9 @@ export default function AnalysisPage() {
                           </div>
 
                           <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400 pt-2.5 font-medium">
-                            <span>মোট প্রশ্ন: <strong className="text-slate-700 dark:text-slate-300">{sub.totalAttempted}টি</strong></span>
+                            {lang === 'en' ? <><span>Questions: <strong className="text-slate-700 dark:text-slate-300">{sub.totalAttempted}</strong></span></> : <><span>মোট প্রশ্ন: <strong className="text-slate-700 dark:text-slate-300">{sub.totalAttempted}টি</strong></span></>}
                             <span>
-                              সঠিক: <span className="text-emerald-600 font-bold">{sub.correctAnswers}</span> | ভুল: <span className="text-rose-500 font-bold">{Math.max(0, sub.totalAttempted - sub.correctAnswers)}</span>
+                              {lang === 'en' ? <>Correct: <span className="text-emerald-600 font-bold">{sub.correctAnswers}</span> | Wrong: <span className="text-rose-500 font-bold">{Math.max(0, sub.totalAttempted - sub.correctAnswers)}</span></> : <>সঠিক: <span className="text-emerald-600 font-bold">{sub.correctAnswers}</span> | ভুল: <span className="text-rose-500 font-bold">{Math.max(0, sub.totalAttempted - sub.correctAnswers)}</span></>}
                             </span>
                           </div>
                         </div>
@@ -383,12 +385,12 @@ export default function AnalysisPage() {
                           <div className="px-4 pb-4 pt-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 space-y-2.5">
                             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 pt-1">
                               <Layers size={13} className="text-emerald-500" />
-                              <span>অধ্যায়ভিত্তিক অগ্রগতি:</span>
+                              <span>{t('অধ্যায়ভিত্তিক অগ্রগতি:', 'Progress by chapter:')}</span>
                             </div>
 
                             {matchingChapters.length === 0 ? (
                               <p className="text-[11px] text-slate-400 italic py-1 pl-1">
-                                এই বিষয়ের কোনো অধ্যায় এখনও শেষ করা হয়নি।
+                                {t('এই বিষয়ের কোনো অধ্যায় এখনও শেষ করা হয়নি।', 'No chapter of this subject done yet.')}
                               </p>
                             ) : (
                               <div className="space-y-2">
@@ -419,8 +421,8 @@ export default function AnalysisPage() {
                                       </div>
 
                                       <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                        <span>অনুশীলন: {chap.totalAttempted}টি</span>
-                                        <span>সঠিক: {chap.correctAnswers} | ভুল: {Math.max(0, chap.totalAttempted - chap.correctAnswers)}</span>
+                                        {lang === 'en' ? <><span>Practised: {chap.totalAttempted}</span></> : <><span>অনুশীলন: {chap.totalAttempted}টি</span></>}
+                                        {lang === 'en' ? <><span>Correct: {chap.correctAnswers} | Wrong: {Math.max(0, chap.totalAttempted - chap.correctAnswers)}</span></> : <><span>সঠিক: {chap.correctAnswers} | ভুল: {Math.max(0, chap.totalAttempted - chap.correctAnswers)}</span></>}
                                       </div>
                                     </div>
                                   );
@@ -450,9 +452,9 @@ export default function AnalysisPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-rose-600 dark:text-rose-400">
-                    প্রস্তুতি আশঙ্কাজনক (অ্যাকুরেসি ৭০% এর নিচে)! ⚠️
+                    {t('প্রস্তুতি আশঙ্কাজনক (অ্যাকুরেসি ৭০% এর নিচে)! ⚠️', 'Preparation at risk (accuracy below 70%)! ⚠️')}
                   </h3>
-                  <span className="text-xs text-slate-400">নেগেটিভ মার্কিং এড়ানোর গাইডলাইন</span>
+                  <span className="text-xs text-slate-400">{t('নেগেটিভ মার্কিং এড়ানোর গাইডলাইন', 'Guide to avoid negative marking')}</span>
                 </div>
               </div>
               <button
@@ -464,14 +466,14 @@ export default function AnalysisPage() {
             </div>
 
             <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 text-xs sm:text-sm text-rose-800 dark:text-rose-300 leading-relaxed">
-              মেডিকেল ভর্তি পরীক্ষায় প্রতি ৪টি ভুল উত্তরের জন্য ১ নম্বর কাটা যায়। মূল প্রতিযোগিতায় টিকে থাকতে গড়ে <strong>৭০% থেকে ৮৫% অ্যাকুরেসি</strong> নিশ্চিত করা অত্যন্ত জরুরি।
+              {lang === 'en' ? <>In the medical admission test, every 4 wrong answers cost 1 mark. To stay competitive, keep your accuracy at <strong>70% to 85%</strong>.</> : <>মেডিকেল ভর্তি পরীক্ষায় প্রতি ৪টি ভুল উত্তরের জন্য ১ নম্বর কাটা যায়। মূল প্রতিযোগিতায় টিকে থাকতে গড়ে <strong>৭০% থেকে ৮৫% অ্যাকুরেসি</strong> নিশ্চিত করা অত্যন্ত জরুরি।</>}
             </div>
 
             {weakSubjects.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
                   <Flame size={14} className="text-rose-500" />
-                  <span>যেসব বিষয়ে এখনই রিভিশন প্রয়োজন:</span>
+                  <span>{t('যেসব বিষয়ে এখনই রিভিশন প্রয়োজন:', 'Subjects to revise right now:')}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                   {weakSubjects.map(ws => {
@@ -500,13 +502,13 @@ export default function AnalysisPage() {
                 onClick={() => setShowWarningModal(false)}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                বুঝেছি
+                {t('বুঝেছি', 'Got it')}
               </button>
               <Link
                 href="/mistakes"
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold shadow-sm transition-all"
               >
-                ভুল প্রশ্নগুলো রিভিশন দিন
+                {t('ভুল প্রশ্নগুলো রিভিশন দিন', 'Revise the mistakes')}
               </Link>
             </div>
           </div>

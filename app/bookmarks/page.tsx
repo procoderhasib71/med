@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLang } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Bookmark, Lightbulb, CheckCircle2, RotateCcw } from 'lucide-react';
 import { getMe, setBookmark } from '@/lib/siteApi';
@@ -10,6 +11,7 @@ import { fetchQuestionsByIds, Question } from '../qbank/actions';
 import RenderTextOrMath from '../components/RenderTextOrMath';
 
 export default function BookmarksPage() {
+    const { t, n, lang } = useLang();
     const router = useRouter();
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
@@ -136,10 +138,10 @@ export default function BookmarksPage() {
                         </button>
                         <div>
                             <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                                বুকমার্কস 🔖
+                                {t('বুকমার্কস 🔖', 'Bookmarks 🔖')}
                             </span>
                             <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                                মোট সংরক্ষিত: {questions.length} টি
+                                {lang === 'en' ? <>Saved: {questions.length}</> : <>মোট সংরক্ষিত: {questions.length} টি</>}
                             </span>
                         </div>
                     </div>
@@ -159,11 +161,11 @@ export default function BookmarksPage() {
                 {loading ? (
                     <div className="py-24 flex flex-col items-center justify-center text-slate-400">
                         <Loader2 className="animate-spin text-purple-600 dark:text-purple-400 mb-2" size={32} />
-                        <span className="text-xs font-semibold text-slate-500">বুকমার্ক লোড হচ্ছে...</span>
+                        <span className="text-xs font-semibold text-slate-500">{t('বুকমার্ক লোড হচ্ছে...', 'Loading bookmarks...')}</span>
                     </div>
                 ) : questions.length === 0 ? (
                     <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-[28px] border border-slate-200/80 dark:border-slate-800 shadow-xs text-slate-500 dark:text-slate-400 text-sm">
-                        কোনো প্রশ্ন বুকমার্ক করা হয়নি।
+                        {t('কোনো প্রশ্ন বুকমার্ক করা হয়নি।', 'No bookmarked questions yet.')}
                     </div>
                 ) : (
                     questions.map((q, index) => {
@@ -204,7 +206,7 @@ export default function BookmarksPage() {
                                     <button
                                         onClick={() => removeBookmark(String(q.id))}
                                         className="p-1.5 rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
-                                        title="বুকমার্ক সরান"
+                                        title={t('বুকমার্ক সরান', 'Remove bookmark')}
                                     >
                                         <Bookmark size={18} fill="currentColor" />
                                     </button>
@@ -256,7 +258,7 @@ export default function BookmarksPage() {
                                         <div className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                                             <Lightbulb size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                                             <div>
-                                                <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">ব্যাখ্যা:</span>
+                                                <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1.5">{t('ব্যাখ্যা:', 'Explanation:')}</span>
                                                 <RenderTextOrMath text={q.explanation} />
                                             </div>
                                         </div>

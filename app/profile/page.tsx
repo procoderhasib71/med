@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LangSwitch, useLang } from '@/lib/i18n';
 import CourseAvatar from '@/components/CourseAvatar';
 import Link from 'next/link';
 import { BadgeCheck, CalendarDays, Check, KeyRound, Phone, Send, Target, Trophy, UserRound } from 'lucide-react';
 import { ACCENT, COURSES, type CourseId } from '@/lib/courses';
-import { bn, pct, showDate, useAccount } from '@/lib/useAccount';
+import { pct, showDate, useAccount } from '@/lib/useAccount';
 import CourseIcon from '@/components/CourseIcon';
 import BrandLoader from '@/components/BrandLoader';
 import { BotPanel, card, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
@@ -15,6 +16,7 @@ import { BotPanel, card, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '
 
 export default function ProfilePage() {
     const acc = useAccount();
+    const { t, n, lang } = useLang();
     const [offer, setOffer] = useState<CourseId | null>(null);
 
     useEffect(() => {
@@ -28,11 +30,11 @@ export default function ProfilePage() {
         if (await acc.enroll(id)) window.history.replaceState(null, '', '/profile');
     };
 
-    if (acc.status === 'loading') return <BrandLoader text="প্রোফাইল লোড হচ্ছে..." />;
+    if (acc.status === 'loading') return <BrandLoader text={t('প্রোফাইল লোড হচ্ছে...', 'Loading profile...')} />;
     const p = acc.profile;
     if (!p) return (
         <div className="min-h-screen flex items-center justify-center text-sm bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-700 dark:text-slate-200 px-4 text-center">
-            প্রোফাইল লোড করা যায়নি{acc.msg ? ` (${acc.msg.text})` : ''}। <Link href="/login" className="text-emerald-600 ml-1 font-semibold">লগইন</Link>
+            {t('প্রোফাইল লোড করা যায়নি', 'Could not load profile')}{acc.msg ? ` (${acc.msg.text})` : ''}. <Link href="/login" className="text-emerald-600 ml-1 font-semibold">{t('লগইন', 'Log in')}</Link>
         </div>
     );
 
@@ -49,24 +51,24 @@ export default function ProfilePage() {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                         <CourseAvatar className="w-16 h-16" rounded="rounded-2xl" />
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-xl sm:text-2xl font-black truncate">{p.name || 'আপনার প্রোফাইল'}</h1>
+                            <h1 className="text-xl sm:text-2xl font-black truncate">{p.name || t('আপনার প্রোফাইল', 'Your profile')}</h1>
                             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
                                 {(p.phone || p.email) && (
                                     <span className="flex items-center gap-1.5">
                                         {p.phone ? <Phone size={14} /> : <UserRound size={14} />}
-                                        {p.phone ? bn(p.phone.replace('+88', '')) : p.email}
+                                        {p.phone ? n(p.phone.replace('+88', '')) : p.email}
                                     </span>
                                 )}
-                                {showDate(p.since) && <span className="flex items-center gap-1.5"><CalendarDays size={14} /> সদস্য {showDate(p.since)} থেকে</span>}
-                                {p.botLinked && <span className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400"><BadgeCheck size={14} /> বটে যুক্ত</span>}
+                                {showDate(p.since, lang) && <span className="flex items-center gap-1.5"><CalendarDays size={14} /> {t(`সদস্য ${showDate(p.since, lang)} থেকে`, `Member since ${showDate(p.since, lang)}`)}</span>}
+                                {p.botLinked && <span className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400"><BadgeCheck size={14} /> {t('বটে যুক্ত', 'Bot linked')}</span>}
                             </div>
                         </div>
                     </div>
                     <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
                         {[
-                            { icon: Target, value: bn(mine.length), text: 'চালু কোর্স' },
-                            { icon: Check, value: bn(total.attempted), text: 'উত্তর দিয়েছেন' },
-                            { icon: Trophy, value: `${bn(pct(total))}%`, text: 'সঠিকের হার' },
+                            { icon: Target, value: n(mine.length), text: t('চালু কোর্স', 'Active courses') },
+                            { icon: Check, value: n(total.attempted), text: t('উত্তর দিয়েছেন', 'Answered') },
+                            { icon: Trophy, value: `${n(pct(total))}%`, text: t('সঠিকের হার', 'Accuracy') },
                         ].map((s) => (
                             <div key={s.text} className="rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-100 dark:border-slate-800 p-3 sm:p-4">
                                 <s.icon size={16} className="text-emerald-500" />
@@ -81,7 +83,7 @@ export default function ProfilePage() {
 
                 {mine.length === 0 && !offered && (
                     <div className="rounded-xl px-4 py-3 text-sm font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300">
-                        ক্লাসরুমে ঢুকতে নিচে থেকে একটা কোর্স নিন।
+                        {t('ক্লাসরুমে ঢুকতে নিচে থেকে একটা কোর্স নিন।', 'Add a course below to enter the classroom.')}
                     </div>
                 )}
 
@@ -91,12 +93,12 @@ export default function ProfilePage() {
                             <CourseIcon id={offered.id} className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
-                            <h2 className="font-bold">{offered.name} কোর্সটি নেবেন?</h2>
-                            <p className="text-sm text-slate-500 mt-0.5">নিলে ক্লাসরুমে এই কোর্সের প্রশ্নব্যাংক, মডেল টেস্ট আর অ্যানালাইসিস চালু হবে।</p>
+                            <h2 className="font-bold">{t(`${offered.name} কোর্সটি নেবেন?`, `Add ${offered.title}?`)}</h2>
+                            <p className="text-sm text-slate-500 mt-0.5">{t('নিলে ক্লাসরুমে এই কোর্সের প্রশ্নব্যাংক, মডেল টেস্ট আর অ্যানালাইসিস চালু হবে।', 'Its question bank, model tests and analysis will open in your classroom.')}</p>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => setOffer(null)} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">পরে</button>
-                            <button onClick={() => take(offered.id)} disabled={Boolean(acc.busy)} className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold disabled:opacity-60 cursor-pointer">কোর্স নিন</button>
+                            <button onClick={() => setOffer(null)} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">{t('পরে', 'Later')}</button>
+                            <button onClick={() => take(offered.id)} disabled={Boolean(acc.busy)} className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold disabled:opacity-60 cursor-pointer">{t('কোর্স নিন', 'Add course')}</button>
                         </div>
                     </section>
                 )}
@@ -105,20 +107,26 @@ export default function ProfilePage() {
 
                 {/* অ্যাকাউন্ট সেটিংস */}
                 <section>
-                    <h2 className="text-lg font-black mb-3">অ্যাকাউন্ট সেটিংস</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <h2 className="text-lg font-black">{t('অ্যাকাউন্ট সেটিংস', 'Account settings')}</h2>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500">{t('ভাষা', 'Language')}</span>
+                            <LangSwitch />
+                        </div>
+                    </div>
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className={`${card} p-5 space-y-5`}>
                             <div className="space-y-3">
-                                <h3 className="font-bold flex items-center gap-2"><UserRound size={17} className="text-emerald-500" /> নাম</h3>
+                                <h3 className="font-bold flex items-center gap-2"><UserRound size={17} className="text-emerald-500" /> {t('নাম', 'Name')}</h3>
                                 <NamePanel acc={acc} />
                             </div>
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                                <h3 className="font-bold flex items-center gap-2"><Send size={17} className="text-sky-500" /> মাছরাঙা বট (Telegram)</h3>
+                                <h3 className="font-bold flex items-center gap-2"><Send size={17} className="text-sky-500" /> {t('মাছরাঙা বট (Telegram)', 'Machranga bot (Telegram)')}</h3>
                                 <BotPanel acc={acc} />
                             </div>
                         </div>
                         <div className={`${card} p-5 space-y-3`}>
-                            <h3 className="font-bold flex items-center gap-2"><KeyRound size={17} className="text-emerald-500" /> পাসওয়ার্ড</h3>
+                            <h3 className="font-bold flex items-center gap-2"><KeyRound size={17} className="text-emerald-500" /> {t('পাসওয়ার্ড', 'Password')}</h3>
                             <PasswordPanel acc={acc} />
                         </div>
                     </div>

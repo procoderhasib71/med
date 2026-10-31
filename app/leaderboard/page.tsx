@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLang } from '@/lib/i18n';
 import CourseTag from '@/components/CourseTag';
 import { useRouter } from 'next/navigation';
 import {
@@ -23,6 +24,7 @@ interface LeaderboardUser {
 }
 
 export default function LeaderboardPage() {
+    const { t, n, lang } = useLang();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<LeaderboardUser[]>([]);
@@ -155,7 +157,7 @@ export default function LeaderboardPage() {
                     <div className="flex items-center gap-2">
                         <Trophy size={17} className="text-amber-500" />
                         <h1 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">
-                            লিডারবোর্ড
+                            {t('লিডারবোর্ড', 'Leaderboard')}
                         </h1>
                         <CourseTag />
                     </div>
@@ -176,17 +178,17 @@ export default function LeaderboardPage() {
                     <div className="py-24 flex flex-col items-center justify-center text-slate-400">
                         <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mb-2.5" />
                         <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">
-                            র‍্যাংক লোড হচ্ছে...
+                            {t('র‍্যাংক লোড হচ্ছে...', 'Loading ranks...')}
                         </span>
                     </div>
                 ) : users.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
                         <Trophy size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
                         <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">
-                            এখনো কেউ র‍্যাংকে নেই
+                            {t('এখনো কেউ র‍্যাংকে নেই', 'No one is ranked yet')}
                         </h3>
                         <p className="text-xs text-slate-400">
-                            প্রশ্ন সমাধান করলে বা মডেল টেস্ট দিলে এখানে নাম আসবে।
+                            {t('প্রশ্ন সমাধান করলে বা মডেল টেস্ট দিলে এখানে নাম আসবে।', 'Solve questions or take model tests to appear here.')}
                         </p>
                     </div>
                 ) : (
@@ -239,7 +241,7 @@ export default function LeaderboardPage() {
                                             {item.score}
                                         </span>
                                         <span className="text-[11px] font-semibold opacity-70">
-                                            পয়েন্ট
+                                            {t('পয়েন্ট', 'pts')}
                                         </span>
                                     </div>
                                 </div>
@@ -259,10 +261,10 @@ export default function LeaderboardPage() {
                             </div>
                             <div className="min-w-0">
                                 <span className="text-xs sm:text-sm font-bold text-white block truncate">
-                                    আপনার র‍্যাংক
+                                    {t('আপনার র‍্যাংক', 'Your rank')}
                                 </span>
                                 <span className="text-[10px] sm:text-[11px] text-slate-400 block truncate">
-                                    {myRankData.rank ? `সবার মধ্যে #${myRankData.rank}` : 'আরও পয়েন্ট পেলে সেরা ৫০ এ আসবেন'}
+                                    {myRankData.rank ? t(`সবার মধ্যে #${n(myRankData.rank)}`, `Rank #${myRankData.rank}`) : t('আরও পয়েন্ট পেলে সেরা ৫০ এ আসবেন', 'Score more points to reach the top 50')}
                                 </span>
                             </div>
                         </div>
@@ -272,7 +274,7 @@ export default function LeaderboardPage() {
                                 {myRankData.score}
                             </span>
                             <span className="text-[10px] font-bold text-slate-400">
-                                পয়েন্ট
+                                {t('পয়েন্ট', 'pts')}
                             </span>
                         </div>
                     </div>

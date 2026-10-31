@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLang } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import { getMistakes, removeMistakes } from '@/lib/siteApi';
 import { onAuthStateChanged } from '@/lib/session';
@@ -35,6 +36,7 @@ interface MistakeItem {
 const PAGE_SIZE = 10;
 
 export default function MistakesPage() {
+    const { t, n, lang } = useLang();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [allMistakes, setAllMistakes] = useState<MistakeItem[]>([]);
@@ -223,10 +225,10 @@ export default function MistakesPage() {
             </Link>
             <div>
               <h1 className="text-lg font-black tracking-tight flex items-center gap-2">
-                ভুল প্রশ্নের ব্যাংক 🩺
+                {t('ভুল প্রশ্নের ব্যাংক 🩺', 'Mistake bank 🩺')}
               </h1>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                মোট ভুল: {filteredMistakes.length} টি
+                {lang === 'en' ? <>Total mistakes: {filteredMistakes.length}</> : <>মোট ভুল: {filteredMistakes.length} টি</>}
               </span>
             </div>
           </div>
@@ -234,7 +236,7 @@ export default function MistakesPage() {
             href="/qbank"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all border border-emerald-200/60 dark:border-emerald-800/60"
           >
-            প্র্যাকটিস করুন <ExternalLink size={13} />
+            {lang === 'en' ? <>Practise <ExternalLink size={13} /></> : <>প্র্যাকটিস করুন <ExternalLink size={13} /></>}
           </Link>
         </div>
       </header>
@@ -253,7 +255,7 @@ export default function MistakesPage() {
                   : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-500'
                   }`}
               >
-                {sub === 'all' ? 'সব বিষয়' : sub}
+                {sub === 'all' ? t('সব বিষয়', 'All subjects') : sub}
               </button>
             ))}
           </div>
@@ -262,22 +264,22 @@ export default function MistakesPage() {
         {loading ? (
           <div className="py-24 text-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">ভুল প্রশ্নগুলো আনা হচ্ছে...</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('ভুল প্রশ্নগুলো আনা হচ্ছে...', 'Loading your mistakes...')}</p>
           </div>
         ) : filteredMistakes.length === 0 ? (
           <div className="py-20 text-center bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-200/60 dark:border-emerald-800/40">
               <Sparkles size={30} />
             </div>
-            <h3 className="text-lg font-bold mb-1">কোনো ভুল প্রশ্ন নেই!</h3>
+            <h3 className="text-lg font-bold mb-1">{t('কোনো ভুল প্রশ্ন নেই!', 'No mistakes!')}</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              আপনি পরীক্ষায় বা প্র্যাকটিসে যেসব প্রশ্নের ভুল উত্তর দেবেন, সেগুলো এখানে স্বয়ংক্রিয়ভাবে জমা হবে যাতে আবার রিভিশন দিতে পারেন।
+              {t('আপনি পরীক্ষায় বা প্র্যাকটিসে যেসব প্রশ্নের ভুল উত্তর দেবেন, সেগুলো এখানে স্বয়ংক্রিয়ভাবে জমা হবে যাতে আবার রিভিশন দিতে পারেন।', 'Questions you answer wrong in exams or practice are saved here automatically so you can revise them.')}
             </p>
             <Link
               href="/qbank"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all"
             >
-              প্রশ্নব্যাংক শুরু করুন
+              {t('প্রশ্নব্যাংক শুরু করুন', 'Start the question bank')}
             </Link>
           </div>
         ) : (
@@ -311,7 +313,7 @@ export default function MistakesPage() {
                     </div>
                     <button
                       onClick={() => handleRemoveMistake(item.id)}
-                      title="ঠিক করেছি / তালিকা থেকে সরান"
+                      title={t('ঠিক করেছি / তালিকা থেকে সরান', 'Fixed it / remove from list')}
                       className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-all cursor-pointer"
                     >
                       <Trash2 size={16} />
@@ -366,7 +368,7 @@ export default function MistakesPage() {
                       <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                         <Lightbulb size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1">ব্যাখ্যা:</span>
+                          <span className="font-bold text-emerald-800 dark:text-emerald-300 mr-1">{t('ব্যাখ্যা:', 'Explanation:')}</span>
                           <RenderTextOrMath text={item.explanation} />
                         </div>
                       </div>
