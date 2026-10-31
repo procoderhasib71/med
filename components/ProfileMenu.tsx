@@ -57,7 +57,7 @@ export default function ProfileMenu() {
     return (
         <>
             <button onClick={() => setOpen(true)} aria-label={t('প্রোফাইল মেনু', 'Profile menu')}
-                className="rounded-xl ring-2 ring-white/70 dark:ring-slate-700 shadow-md hover:scale-105 transition-transform cursor-pointer">
+                className="rounded-full hover:opacity-90 focus-visible:outline-2 focus-visible:outline-emerald-500 transition-opacity cursor-pointer">
                 <CourseAvatar className="w-9 h-9" />
             </button>
 
