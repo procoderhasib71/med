@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
 import './globals.css';
-import { PLATFORMS, platformFromHost } from '@/lib/platform';
+import { PLATFORMS } from '@/lib/platform';
+import { currentPlatform } from '@/lib/currentPlatform';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import CourseProvider from '@/components/CourseProvider';
 
 export const viewport: Viewport = {
   themeColor: '#059669',
@@ -13,10 +14,9 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-// সাইটের ঠিকানা অনুযায়ী নাম (med/ka/kha/eng)
+// কোর্স অনুযায়ী নাম (med/ka/kha/eng; ক্লাসরুমে বাছাই করা কোর্স)
 export async function generateMetadata(): Promise<Metadata> {
-  const h = await headers();
-  const p = PLATFORMS[platformFromHost(h.get('x-forwarded-host') || h.get('host'))];
+  const p = PLATFORMS[await currentPlatform()];
   return {
   title: p.title,
   manifest: '/manifest.json',
@@ -57,7 +57,7 @@ export default function RootLayout({
       </head>
       <body className="bg-slate-50 dark:bg-[#0B1120] min-h-screen antialiased">
         <ThemeProvider>
-          {children}
+          <CourseProvider>{children}</CourseProvider>
         </ThemeProvider>
       </body>
     </html>

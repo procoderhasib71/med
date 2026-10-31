@@ -37,7 +37,7 @@ export default function LoginPage() {
   useEffect(() => {
     // admcq.com এর subdomain এ লগইন হয় admcq.com এ (একবার লগইনে চার সাইট), লগইন শেষে এখানে ফিরে আসে
     if (CENTRAL_LOGIN && onAdmcqDomain(window.location.host)) {
-      window.location.replace(`${ACCOUNT_URL}/login?next=${encodeURIComponent(window.location.origin + '/')}`);
+      window.location.replace(`${ACCOUNT_URL}/login?next=${encodeURIComponent(window.location.origin + nextPath())}`);
       return;
     }
     setMounted(true);
@@ -81,6 +81,12 @@ export default function LoginPage() {
     return `${msg[c] || 'লগইন করা যায়নি। আবার চেষ্টা করুন।'}${c ? ` (${c})` : ''}`;
   };
 
+  // লগইনের পরে কোথায় যাবে (?next=/course/med এর মতো); শুধু এই সাইটের পেজ
+  const nextPath = () => {
+    const raw = new URLSearchParams(window.location.search).get('next') || '/';
+    return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
+  };
+
   const finishLogin = async () => {
     // প্রথমবার এলে সার্ভার নিজেই Turso তে প্রোফাইল বানায়; নাম না থাকলে জিজ্ঞেস করি
     const me = await getMe().catch(() => null);
@@ -89,7 +95,7 @@ export default function LoginPage() {
       setStep('name');
       return;
     }
-    router.push('/');
+    router.push(nextPath());
   };
 
   // '01712345678', '+8801712345678', বাংলা অঙ্ক সব চলে
@@ -143,7 +149,7 @@ export default function LoginPage() {
     try {
       if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: n });
       await setMyName(n);
-      router.push('/');
+      router.push(nextPath());
     } catch (err: any) {
       setError(authError(err));
     } finally {

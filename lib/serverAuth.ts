@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
-import { platformFromHost, type Platform } from '@/lib/platform';
+import { COURSE_COOKIE, resolvePlatform, type Platform } from '@/lib/platform';
 import { ensureUser } from '@/lib/siteData';
 
 // ADMIN_EMAILS: koma diye alada kora email, hosting er environment e bosano
@@ -11,9 +11,9 @@ export const SESSION_COOKIE = '__session';   // admcq.com এর লগইন �
 
 export type SignedInUser = { uid: string; email: string; name: string; phone?: string };
 
-/** কোন প্ল্যাটফর্মের সাইট থেকে request (ঠিকানা দেখে) */
+/** কোন প্ল্যাটফর্মের request: কোর্সের ঠিকানা দেখে, ক্লাসরুমে (app.admcq.com) বাছাই করা কোর্স দেখে */
 export const platformOf = (req: NextRequest): Platform =>
-    platformFromHost(req.headers.get('x-forwarded-host') || req.headers.get('host'));
+    resolvePlatform(req.headers.get('x-forwarded-host') || req.headers.get('host'), req.cookies.get(COURSE_COOKIE)?.value);
 
 /** লগইন: ব্রাউজারের Firebase টোকেন (Authorization header) অথবা admcq.com এর session cookie */
 export async function getUser(req: NextRequest): Promise<SignedInUser | null> {

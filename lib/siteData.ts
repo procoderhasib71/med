@@ -42,6 +42,12 @@ export async function setName(uid: string, name: string) {
 
 // ---------------- প্রোফাইল ----------------
 
+/** ছাত্র কোন কোর্সগুলো নিয়েছে (admcq.com এর প্রোফাইল থেকে নেয়; টেবিল Hermes2/migrations/010) */
+export async function getEnrollments(uid: string): Promise<Platform[]> {
+    const r = await turso.execute({ sql: 'SELECT platform FROM site_enrollments WHERE uid = ? ORDER BY created_at', args: [uid] });
+    return r.rows.map((x) => String(x.platform) as Platform);
+}
+
 export async function getMe(uid: string, p: Platform) {
     const [user, score, bm, mc, done] = await turso.batch([
         { sql: 'SELECT * FROM site_users WHERE uid = ?', args: [uid] },

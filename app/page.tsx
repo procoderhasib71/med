@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, signOut } from '@/lib/session';
 import TelegramLinkButton from '@/components/TelegramLinkButton';
+import CourseSwitcher from '@/components/CourseSwitcher';
 import { session as auth } from '@/lib/session';
 
 interface ModelTestItem {
@@ -242,17 +243,18 @@ export default function MedicalPortal() {
             <header className="sticky top-0 z-40 w-full border-b border-black/[0.04] dark:border-white/[0.06] bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md">
                 <div className="mx-auto max-w-2xl px-4 sm:px-6">
                     <div className="flex h-[52px] items-center justify-between">
-                        <Link href="/" className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#059669] text-white shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <Link href="/" className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#059669] text-white shadow-xs">
                                 <Stethoscope size={15} />
-                            </div>
+                            </Link>
                             <div className="flex flex-col">
-                                <span className="text-[16.5px] font-black leading-none tracking-tight text-slate-900 dark:text-white">
+                                <Link href="/" className="text-[16.5px] font-black leading-none tracking-tight text-slate-900 dark:text-white">
                                     ADQ<span className="text-[#059669]">Live</span>
-                                </span>
-                                <span className="text-[8px] font-extrabold tracking-widest text-[#64748B] uppercase">MEDICAL PORTAL</span>
+                                </Link>
+                                {/* চালু কোর্স; ক্লাসরুমে ক্লিক করে বদলানো যায় */}
+                                <CourseSwitcher />
                             </div>
-                        </Link>
+                        </div>
 
                         <div className="flex items-center gap-2">
                             <button
