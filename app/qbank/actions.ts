@@ -2,6 +2,7 @@
 
 import { turso } from '@/lib/turso';
 import { currentPlatform } from '@/lib/currentPlatform';
+import { visibleSql } from '@/lib/questionVisibility';
 
 export type Question = {
     id: string;
@@ -40,7 +41,7 @@ export async function fetchFilteredQuestions(page: number, filters: any): Promis
         return cachedEntry.data;
     }
 
-    let sql = 'SELECT * FROM questions WHERE platform = ?';
+    let sql = `SELECT * FROM questions WHERE platform = ? AND ${visibleSql()}`;
     let args: string[] = [platform];
 
     if (filters.subject) {
@@ -138,7 +139,7 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
         for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
             const chunk = missingIds.slice(i, i + CHUNK_SIZE);
             const placeholders = chunk.map(() => '?').join(',');
-            const sql = `SELECT * FROM questions WHERE id IN (${placeholders})`;
+            const sql = `SELECT * FROM questions WHERE id IN (${placeholders}) AND ${visibleSql()}`;
 
             try {
                 const res = await turso.execute({ sql, args: chunk });

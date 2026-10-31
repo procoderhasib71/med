@@ -114,7 +114,8 @@ async function applyFields(questionId: string, edits: Partial<Record<Editable, s
  * save: admin নিজে যা লিখেছে (প্রশ্ন/অপশন/উত্তর/ব্যাখ্যা) সেটাই বসে।
  */
 export async function reviewAiFix(questionId: string, action: 'apply' | 'keep' | 'save', by: string, edits: Partial<Record<Editable, string>> = {}) {
-    if (action === 'keep') return applyFields(questionId, {}, 'Reviewed: kept original', by);
+    // status গুলো বটও চেনে (Hermes2/tools/mcq_meta.py), তাই রিভিউয়ের পর প্রশ্নটা দুই জায়গাতেই আবার দেখায়
+    if (action === 'keep') return applyFields(questionId, {}, 'Verified OK', by);
 
     if (action === 'apply') {
         const r = await turso.execute({ sql: 'SELECT new_correct_option, new_explanation FROM questions WHERE id = ?', args: [questionId] });
@@ -123,7 +124,7 @@ export async function reviewAiFix(questionId: string, action: 'apply' | 'keep' |
         const text = (edits.explanation ?? String(r.rows[0].new_explanation ?? '')).trim();
         if (!OPTIONS.includes(opt)) throw new Error('AI এর উত্তর একটা অপশন না, নিজে ঠিক করে সেভ করুন');
         if (!text) throw new Error('ব্যাখ্যা ফাঁকা');
-        return applyFields(questionId, { correct_option: opt, explanation: text }, 'Fixed by admin (AI)', by);
+        return applyFields(questionId, { correct_option: opt, explanation: text }, 'Fixed by admin', by);
     }
 
     const clean: Partial<Record<Editable, string>> = {};

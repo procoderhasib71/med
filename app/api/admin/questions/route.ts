@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
 import { platformOf, requireAdmin } from '@/lib/serverAuth';
+import { visibleSql } from '@/lib/questionVisibility';
 
 const turso = createClient({
     url: process.env.TURSO_DATABASE_URL!,
@@ -20,7 +21,8 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get('search') || '';
         const limit = Math.min(parseInt(searchParams.get('limit') || '150') || 150, 500);
 
-        const conditions: string[] = ['platform = ?'];
+        // মডেল টেস্টে AI এর ধরা ভুল প্রশ্ন যেন না ঢোকে
+        const conditions: string[] = ['platform = ?', visibleSql()];
         const args: any[] = [platformOf(req)];
 
         if (subject) {
