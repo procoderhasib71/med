@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { PLATFORMS } from '@/lib/platform';
+import { headers } from 'next/headers';
+import { PLATFORMS, isClassroomHost } from '@/lib/platform';
 import { currentPlatform } from '@/lib/currentPlatform';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import CourseProvider from '@/components/CourseProvider';
@@ -31,11 +32,14 @@ export async function generateMetadata(): Promise<Metadata> {
 };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // ক্লাসরুমে লগইন আর কোর্স যাচাইয়ের আগে পেজ দেখানো হয় না (নইলে হোম এক ঝলক দেখিয়ে লগইনে যায়)
+  const h = await headers();
+  const classroom = isClassroomHost(h.get('x-forwarded-host') || h.get('host'));
   return (
     <html lang="bn" suppressHydrationWarning>
       <head>
@@ -57,7 +61,7 @@ export default function RootLayout({
       </head>
       <body className="bg-slate-50 dark:bg-[#0B1120] min-h-screen antialiased">
         <ThemeProvider>
-          <CourseProvider>{children}</CourseProvider>
+          <CourseProvider classroom={classroom}>{children}</CourseProvider>
         </ThemeProvider>
       </body>
     </html>

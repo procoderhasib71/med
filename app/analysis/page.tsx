@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import CourseTag from '@/components/CourseTag';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -214,13 +215,10 @@ export default function AnalysisPage() {
               <ArrowLeft size={18} />
             </Link>
             <div>
-              {/* ✅ ইংরেজি টাইটেল */}
               <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                Performance Analysis 📊
+                পারফরম্যান্স অ্যানালাইসিস
               </h1>
-              <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
-                Detailed Evaluation & Analytics
-              </span>
+              <CourseTag />
             </div>
           </div>
 

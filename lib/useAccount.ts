@@ -7,7 +7,7 @@ import { COURSES, type CourseId } from '@/lib/courses';
 import { auth, phoneEmail } from '@/lib/firebase';
 import { onAuthStateChanged, session, signOut } from '@/lib/session';
 
-// প্রোফাইল পেজের সব কাজ: লোড, কোর্স নেওয়া, কোর্সে ঢোকা, নাম, পাসওয়ার্ড, বট, লগআউট
+// প্রোফাইল পেজ আর হেডারের slide মেনুর সব কাজ: লোড, কোর্স নেওয়া, কোর্সে ঢোকা, নাম, পাসওয়ার্ড, বট, লগআউট
 
 export type Platform = { id: CourseId; name: string; enrolled: boolean; enrolledAt: string; attempted: number; correct: number; score: number };
 export type Profile = { uid: string; name: string; email: string; phone: string; since: string; botLinked: boolean };
@@ -16,17 +16,18 @@ export type Msg = { ok: boolean; text: string } | null;
 const post = (url: string, body: unknown, method = 'POST') =>
     authFetch(url, { method, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({}));
 
-export function useAccount() {
+export function useAccount({ redirectIfLoggedOut = true } = {}) {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [platforms, setPlatforms] = useState<Platform[]>([]);
-    const [status, setStatus] = useState<'loading' | 'in' | 'error'>('loading');
+    const [status, setStatus] = useState<'loading' | 'in' | 'out' | 'error'>('loading');
     const [msg, setMsg] = useState<Msg>(null);
     const [busy, setBusy] = useState('');
 
     const load = useCallback(async () => {
         const r = await authFetch('/api/profile', { cache: 'no-store' }).catch(() => null);
         if (r?.status === 401) {
-            window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+            if (redirectIfLoggedOut) window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+            setStatus('out');
             return null;
         }
         const d = r ? await r.json().catch(() => ({})) : {};
@@ -39,7 +40,7 @@ export function useAccount() {
         setPlatforms(d.platforms);
         setStatus('in');
         return d as { profile: Profile; platforms: Platform[] };
-    }, []);
+    }, [redirectIfLoggedOut]);
 
     // Firebase এর লগইন ফিরে আসার পরে লোড (নইলে টোকেন ছাড়া 401)
     useEffect(() => onAuthStateChanged(session, () => { load(); }), [load]);

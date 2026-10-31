@@ -6,13 +6,13 @@ import { useRouter } from 'next/navigation';
 import {
     Stethoscope, Activity, RefreshCw, Bookmark, BookOpen,
     Radio, Clock, HelpCircle, Users, Zap, FileText,
-    ArrowDown, Play, Moon, Sun, User, Trophy, BarChart3,
+    ArrowDown, Play, User, Trophy, BarChart3,
     Timer, ChevronRight, AlertCircle, Loader2
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged } from '@/lib/session';
-import CourseSwitcher from '@/components/CourseSwitcher';
+import AppHeader from '@/components/AppHeader';
 import { session as auth } from '@/lib/session';
 
 interface ModelTestItem {
@@ -161,44 +161,8 @@ export default function MedicalPortal() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 font-sans transition-colors relative selection:bg-emerald-500 selection:text-white">
 
-            {/* Top Header */}
-            <header className="sticky top-0 z-40 w-full border-b border-black/[0.04] dark:border-white/[0.06] bg-white/80 dark:bg-[#0B1120]/80 backdrop-blur-md">
-                <div className="mx-auto max-w-2xl px-4 sm:px-6">
-                    <div className="flex h-[52px] items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Link href="/" className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[#059669] text-white shadow-xs">
-                                <Stethoscope size={15} />
-                            </Link>
-                            <div className="flex flex-col">
-                                <Link href="/" className="text-[16.5px] font-black leading-none tracking-tight text-slate-900 dark:text-white">
-                                    ADQ<span className="text-[#059669]">Live</span>
-                                </Link>
-                                {/* চালু কোর্স; ক্লাসরুমে ক্লিক করে বদলানো যায় */}
-                                <CourseSwitcher />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={toggleTheme}
-                                className="p-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                            >
-                                {isDarkMode ? <Sun size={19} className="text-[#FBBF24]" /> : <Moon size={19} className="text-slate-600" />}
-                            </button>
-
-                            {!currentUser && (
-                                <Link
-                                    href="/login"
-                                    className="flex items-center gap-1 bg-[#059669] hover:bg-emerald-700 text-white px-2.5 py-1 rounded-[14px] text-[11px] font-bold shadow-xs transition-colors"
-                                >
-                                    <User size={12} />
-                                    <span>লগইন</span>
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </header>
+            {/* হেডার: AdMCQ লোগো, কোর্স বদলানো, থিম, প্রোফাইল মেনু */}
+            <AppHeader />
 
             {/* Main Content */}
             <main className="mx-auto max-w-2xl px-4 sm:px-6 pt-3 pb-28">

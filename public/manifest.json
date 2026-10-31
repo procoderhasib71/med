@@ -1,6 +1,6 @@
 {
-  "name": "ADQLive Medical",
-  "short_name": "MedQBank",
+  "name": "AdMCQ Classroom",
+  "short_name": "AdMCQ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B1120",

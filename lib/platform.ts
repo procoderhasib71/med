@@ -2,10 +2,10 @@
 // ঠিকানা দেখে প্ল্যাটফর্ম ঠিক হয়; অন্য ঠিকানায় (localhost, *.hosted.app) PLATFORM env বা med।
 
 export const PLATFORMS = {
-    med: { name: 'মেডিকেল ও ডেন্টাল', short: 'Medical', title: 'ADMCQ Medical QBank' },
-    ka: { name: "ভার্সিটি 'ক' ইউনিট", short: "Varsity 'Ka'", title: "ADMCQ Varsity 'Ka'" },
-    kha: { name: "ভার্সিটি 'খ' ইউনিট", short: "Varsity 'Kha'", title: "ADMCQ Varsity 'Kha'" },
-    eng: { name: 'ইঞ্জিনিয়ারিং', short: 'Engineering', title: 'ADMCQ Engineering' },
+    med: { name: 'মেডিকেল ও ডেন্টাল', short: 'Medical', title: 'AdMCQ Medical QBank' },
+    ka: { name: "ভার্সিটি 'ক' ইউনিট", short: "Varsity 'Ka'", title: "AdMCQ Varsity 'Ka'" },
+    kha: { name: "ভার্সিটি 'খ' ইউনিট", short: "Varsity 'Kha'", title: "AdMCQ Varsity 'Kha'" },
+    eng: { name: 'ইঞ্জিনিয়ারিং', short: 'Engineering', title: 'AdMCQ Engineering' },
 } as const;
 export type Platform = keyof typeof PLATFORMS;
 

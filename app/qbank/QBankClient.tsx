@@ -842,7 +842,7 @@ function QBankInner() {
                                 <ArrowLeft size={15} />
                             </button>
                             <span className="text-sm sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-                                ADQ<span className="text-emerald-600 dark:text-emerald-400">Live</span> QBank
+                                Ad<span className="text-emerald-600 dark:text-emerald-400">MCQ</span> QBank
                             </span>
                         </div>
 
