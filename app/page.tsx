@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw } from 'lucide-react';
+import { BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw } from 'lucide-react';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, session } from '@/lib/session';
 import { COURSES } from '@/lib/courses';
@@ -77,7 +77,7 @@ export default function ClassroomHome() {
         <div className="min-h-screen bg-[#F6F8FB] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100">
             <main className="mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
 
-                {/* স্বাগতম + নিজের হিসাব (ছোট, এক নজরে) */}
+                {/* স্বাগতম + নিজের হিসাব (ছোট, এক নজরে); প্র্যাকটিস আর মডেল টেস্ট নিচের কার্ডে */}
                 <section className={`${card} p-4 sm:p-5 flex flex-col md:flex-row md:items-center gap-4`}>
                     <div className="flex items-center gap-3 min-w-0 md:flex-1">
                         <CourseAvatar className="w-11 h-11" />
@@ -97,14 +97,6 @@ export default function ClassroomHome() {
                                 <div className="text-[10.5px] text-slate-500 dark:text-slate-400">{x.label}</div>
                             </div>
                         ))}
-                    </div>
-                    <div className="grid grid-cols-2 md:flex gap-2 shrink-0">
-                        <Link href="/qbank" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors">
-                            <Play size={13} fill="currentColor" /> {t('প্র্যাকটিস', 'Practice')}
-                        </Link>
-                        <Link href="/model-test" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-sm font-bold transition-colors">
-                            {t('মডেল টেস্ট', 'Model test')} <ArrowRight size={14} />
-                        </Link>
                     </div>
                 </section>
 
