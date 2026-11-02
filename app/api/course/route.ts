@@ -3,6 +3,7 @@ import { setCourseCookie } from '@/lib/courseCookie';
 import { COURSE_COOKIE, isClassroomHost, isPlatform } from '@/lib/platform';
 import { fail, getUser, platformOf } from '@/lib/serverAuth';
 import { getEnrollments } from '@/lib/siteData';
+import { getAccount, isComplete } from '@/lib/account';
 
 // ক্লাসরুমের কোর্স: কোনটা চালু, কোনগুলো নেওয়া; বদলানো যায় শুধু নেওয়া কোর্সে
 
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
         chosen: isPlatform(chosen) ? chosen : null,
         loggedIn: Boolean(user),
         enrolled: user ? await getEnrollments(user.uid) : [],
+        // প্রোফাইল (নাম, ছেলে/মেয়ে, পড়ার ধরন, স্কুল/কলেজ) পূরণ না থাকলে ক্লাসরুমের আগে প্রোফাইলে
+        profileComplete: user ? isComplete(await getAccount(user.uid), 'full') : false,
     });
 }
 

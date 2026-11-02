@@ -8,11 +8,11 @@ import { onAuthStateChanged, session } from '@/lib/session';
 import BrandLoader from '@/components/BrandLoader';
 
 // ক্লাসরুম (app.admcq.com): লগইন ছাড়া ঢোকা যায় না, আর শুধু নেওয়া কোর্সগুলো চলে।
-// লগইন না থাকলে লগইন পেজে; একটাও কোর্স না থাকলে প্রোফাইলে (কোর্স নিতে);
+// লগইন না থাকলে লগইন পেজে; প্রোফাইল অসম্পূর্ণ বা একটাও কোর্স না থাকলে প্রোফাইলে;
 // বাছাই করা কোর্স নেওয়া না থাকলে প্রথম নেওয়া কোর্সে। যাচাই শেষ না হওয়া পর্যন্ত পেজের বদলে লোডার,
 // যাতে লগইনে যাওয়ার আগে হোম এক ঝলক দেখা না যায়। কোর্সের নিজের ঠিকানায় (med.admcq.com ইত্যাদি) কিছুই বদলায় না।
 
-export type CourseInfo = { classroom: boolean; current: Platform; chosen: Platform | null; loggedIn: boolean; enrolled: Platform[] };
+export type CourseInfo = { classroom: boolean; current: Platform; chosen: Platform | null; loggedIn: boolean; enrolled: Platform[]; profileComplete: boolean };
 
 const CourseContext = createContext<{ info: CourseInfo | null; switchTo: (p: Platform) => Promise<void> }>({
     info: null,
@@ -41,7 +41,7 @@ export default function CourseProvider({ classroom, children }: { classroom: boo
         if (!d.classroom || free) return setReady(true);
         const here = window.location.pathname + window.location.search;
         if (!d.loggedIn) return window.location.replace(`/login?next=${encodeURIComponent(here)}`);
-        if (d.enrolled.length === 0) return window.location.replace('/profile');
+        if (!d.profileComplete || d.enrolled.length === 0) return window.location.replace('/profile');
         if (!d.chosen || !d.enrolled.includes(d.chosen)) {
             // কুকি নেই বা নেওয়া কোর্স নয়: প্রথম নেওয়া কোর্স চালু করে আবার লোড
             if (await choose(d.enrolled[0])) return window.location.reload();

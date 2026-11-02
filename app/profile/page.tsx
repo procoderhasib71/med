@@ -9,7 +9,9 @@ import { ACCENT, COURSES, type CourseId } from '@/lib/courses';
 import { pct, showDate, useAccount } from '@/lib/useAccount';
 import CourseIcon from '@/components/CourseIcon';
 import BrandLoader from '@/components/BrandLoader';
-import { BotPanel, card, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
+import ProfileForm from '@/components/ProfileForm';
+import { authFetch } from '@/lib/authFetch';
+import { BotPanel, card, CoursesPanel, MsgBox, PasswordPanel } from '@/components/AccountPanels';
 
 // স্টুডেন্ট প্রোফাইল: অ্যাকাউন্ট, যে কোর্সগুলো নেওয়া (শুধু সেগুলো চালু), নাম-পাসওয়ার্ড, মাছরাঙা বট।
 // রেজিস্ট্রেশনের পরে আর কোর্স না থাকলে ছাত্র এখানে আসে; admcq.com এর "কোর্স নিন" থেকে ?enroll=med নিয়ে আসে।
@@ -18,6 +20,13 @@ export default function ProfilePage() {
     const acc = useAccount();
     const { t, n, lang } = useLang();
     const [offer, setOffer] = useState<CourseId | null>(null);
+    const [needProfile, setNeedProfile] = useState(false);   // নাম, ছেলে/মেয়ে, পড়ার ধরন, স্কুল/কলেজ বাকি
+
+    useEffect(() => {
+        if (acc.status !== 'in') return;
+        authFetch('/api/account', { cache: 'no-store' }).then((r) => r.json())
+            .then((d) => setNeedProfile(Boolean(d?.success && !d.complete.full))).catch(() => undefined);
+    }, [acc.status]);
 
     useEffect(() => {
         if (acc.status !== 'in') return;
@@ -81,7 +90,16 @@ export default function ProfilePage() {
 
                 <MsgBox acc={acc} />
 
-                {mine.length === 0 && !offered && (
+                {needProfile && (
+                    <section className={`${card} p-5 sm:p-6 border-emerald-500/60`}>
+                        <h2 className="text-lg font-black">{t('প্রোফাইলটা পূরণ করুন', 'Complete your profile')}</h2>
+                        <p className="text-sm text-slate-500 mt-1 mb-5">{t('একবার পূরণ করলেই হবে; AdMCQ, Pomodoro আর Money তিন জায়গাতেই এটা চলবে।', 'Fill it once; it is shared by AdMCQ, Pomodoro and Money.')}</p>
+                        <ProfileForm submitText={t('সেভ করে এগিয়ে যান', 'Save and continue')}
+                            onSaved={() => { setNeedProfile(false); if (mine.length > 0) window.location.replace('/'); }} />
+                    </section>
+                )}
+
+                {!needProfile && mine.length === 0 && !offered && (
                     <div className="rounded-xl px-4 py-3 text-sm font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300">
                         {t('ক্লাসরুমে ঢুকতে নিচে থেকে একটা কোর্স নিন।', 'Add a course below to enter the classroom.')}
                     </div>
@@ -117,8 +135,8 @@ export default function ProfilePage() {
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className={`${card} p-5 space-y-5`}>
                             <div className="space-y-3">
-                                <h3 className="font-bold flex items-center gap-2"><UserRound size={17} className="text-emerald-500" /> {t('নাম', 'Name')}</h3>
-                                <NamePanel acc={acc} />
+                                <h3 className="font-bold flex items-center gap-2"><UserRound size={17} className="text-emerald-500" /> {t('প্রোফাইল', 'Profile')}</h3>
+                                {!needProfile && <ProfileForm />}
                             </div>
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                                 <h3 className="font-bold flex items-center gap-2"><Send size={17} className="text-sky-500" /> {t('মাছরাঙা বট (Telegram)', 'Machranga bot (Telegram)')}</h3>

@@ -7,13 +7,14 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { BookOpenCheck, ChevronRight, KeyRound, LayoutDashboard, LogOut, Send, UserRound, X } from 'lucide-react';
 import { pct, useAccount } from '@/lib/useAccount';
-import { BotPanel, CoursesPanel, MsgBox, NamePanel, PasswordPanel } from '@/components/AccountPanels';
+import { BotPanel, CoursesPanel, MsgBox, PasswordPanel } from '@/components/AccountPanels';
+import ProfileForm from '@/components/ProfileForm';
 
 // হেডারের প্রোফাইল বোতাম: ক্লিকে ডান দিক থেকে মেনু, মেনুর আইকনে ক্লিকে popup; লগইন না থাকলে লগইন বোতাম
 
 const ITEMS = [
     { id: 'courses', icon: BookOpenCheck, title: ['আমার কোর্স', 'My courses'], hint: ['কোর্স বদলান বা নতুন কোর্স নিন', 'Switch or add a course'], color: 'text-emerald-500 bg-emerald-500/10' },
-    { id: 'name', icon: UserRound, title: ['নাম বদলান', 'Change name'], hint: ['লিডারবোর্ডে যে নাম দেখাবে', 'Shown on the leaderboard'], color: 'text-blue-500 bg-blue-500/10' },
+    { id: 'name', icon: UserRound, title: ['প্রোফাইল', 'Profile'], hint: ['নাম, পড়ার ধরন, স্কুল/কলেজ', 'Name, study, school/college'], color: 'text-blue-500 bg-blue-500/10' },
     { id: 'password', icon: KeyRound, title: ['পাসওয়ার্ড', 'Password'], hint: ['সব কোর্সে একই পাসওয়ার্ড', 'One password for every course'], color: 'text-amber-500 bg-amber-500/10' },
     { id: 'bot', icon: Send, title: ['মাছরাঙা বট', 'Machranga bot'], hint: ['Telegram এ প্র্যাকটিস', 'Practice on Telegram'], color: 'text-sky-500 bg-sky-500/10' },
 ] as const;
@@ -128,7 +129,7 @@ export default function ProfileMenu() {
                             <div className="p-5 space-y-4 text-slate-800 dark:text-slate-100">
                                 <MsgBox acc={acc} />
                                 {popup === 'courses' && <CoursesPanel acc={acc} compact />}
-                                {popup === 'name' && <NamePanel acc={acc} />}
+                                {popup === 'name' && <ProfileForm />}
                                 {popup === 'password' && <PasswordPanel acc={acc} />}
                                 {popup === 'bot' && <BotPanel acc={acc} />}
                             </div>
