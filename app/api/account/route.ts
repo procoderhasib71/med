@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { botMasterId, getAccount, isComplete, updateAccount } from '@/lib/account';
+import { botLinks, getAccount, isComplete, updateAccount } from '@/lib/account';
 import { corsPreflight, withCors } from '@/lib/cors';
 import { requireUser } from '@/lib/serverAuth';
 import { reqT } from '@/lib/serverLang';
@@ -8,9 +8,9 @@ import { reqT } from '@/lib/serverLang';
 export const OPTIONS = corsPreflight;
 
 const reply = async (uid: string) => {
-    const [account, bot] = await Promise.all([getAccount(uid), botMasterId(uid)]);
+    const [account, bots] = await Promise.all([getAccount(uid), botLinks(uid)]);
     return NextResponse.json({
-        success: true, account, botLinked: Boolean(bot),
+        success: true, account, botLinks: bots,
         complete: { money: isComplete(account, 'money'), full: isComplete(account, 'full') },
     });
 };

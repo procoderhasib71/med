@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const [u, scores, bot, enrolled] = await turso.batch([
         { sql: 'SELECT name, email, phone, created_at FROM site_users WHERE uid = ?', args: [user.uid] },
         { sql: 'SELECT platform, attempted, correct, score FROM site_scores WHERE uid = ?', args: [user.uid] },
-        { sql: 'SELECT 1 FROM hermes_site_links WHERE site_uid = ? LIMIT 1', args: [user.uid] },
+        { sql: "SELECT 1 FROM hermes_site_links WHERE site_uid = ? AND site = 'medical' LIMIT 1", args: [user.uid] },
         { sql: 'SELECT platform, created_at FROM site_enrollments WHERE uid = ?', args: [user.uid] },
     ], 'read');
     const row = u.rows[0] || {};

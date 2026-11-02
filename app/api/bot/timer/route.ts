@@ -20,7 +20,7 @@ export const OPTIONS = corsPreflight;
 export async function POST(req: NextRequest) {
     const user = await requireUser(req);
     if (user instanceof NextResponse) return withCors(user);
-    const mid = await botMasterId(user.uid);
+    const mid = await botMasterId(user.uid, 'pomodoro');   // Pomodoro অ্যাপ নিজে বটে যুক্ত থাকলেই
     if (!mid) return withCors(NextResponse.json({ success: true, linked: false }));
 
     const body = await req.json().catch(() => ({}));

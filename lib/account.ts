@@ -24,10 +24,22 @@ export async function getAccount(uid: string): Promise<Account> {
              hscBatch: s(x.hsc_batch), phone: s(x.phone), email: s(x.email) };
 }
 
-/** মাছরাঙা বটে এই অ্যাকাউন্ট যুক্ত থাকলে বটের master_id (একই uid তিন অ্যাপেই, তাই একবার যুক্ত করলেই হয়) */
-export async function botMasterId(uid: string): Promise<string | null> {
-    const r = await turso.execute({ sql: "SELECT master_id FROM hermes_site_links WHERE site_uid = ? AND site = 'medical' ORDER BY linked_at DESC LIMIT 1", args: [uid] });
+/** বটের সাথে প্রতিটা অ্যাপ আলাদা করে যুক্ত হয় (hermes_site_links.site): medical = AdMCQ, money, pomodoro */
+export const BOT_APPS = ['medical', 'money', 'pomodoro'] as const;
+export type BotApp = (typeof BOT_APPS)[number];
+export const asBotApp = (v: unknown): BotApp => ((BOT_APPS as readonly unknown[]).includes(v) ? (v as BotApp) : 'medical');
+
+/** এই অ্যাপ বটে যুক্ত থাকলে বটের master_id */
+export async function botMasterId(uid: string, app: BotApp): Promise<string | null> {
+    const r = await turso.execute({ sql: 'SELECT master_id FROM hermes_site_links WHERE site_uid = ? AND site = ? ORDER BY linked_at DESC LIMIT 1', args: [uid, app] });
     return r.rows[0] ? String(r.rows[0].master_id) : null;
+}
+
+/** কোন কোন অ্যাপ বটে যুক্ত: { medical, money, pomodoro } */
+export async function botLinks(uid: string): Promise<Record<BotApp, boolean>> {
+    const r = await turso.execute({ sql: 'SELECT DISTINCT site FROM hermes_site_links WHERE site_uid = ?', args: [uid] });
+    const sites = new Set(r.rows.map((x) => String(x.site)));
+    return { medical: sites.has('medical'), money: sites.has('money'), pomodoro: sites.has('pomodoro') };
 }
 
 /** শুধু পাঠানো ঘরগুলো বদলায়; ভুল মান হলে বাংলা আর ইংরেজি বার্তা ফেরত দেয় */
