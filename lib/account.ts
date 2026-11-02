@@ -24,6 +24,12 @@ export async function getAccount(uid: string): Promise<Account> {
              hscBatch: s(x.hsc_batch), phone: s(x.phone), email: s(x.email) };
 }
 
+/** মাছরাঙা বটে এই অ্যাকাউন্ট যুক্ত থাকলে বটের master_id (একই uid তিন অ্যাপেই, তাই একবার যুক্ত করলেই হয়) */
+export async function botMasterId(uid: string): Promise<string | null> {
+    const r = await turso.execute({ sql: "SELECT master_id FROM hermes_site_links WHERE site_uid = ? AND site = 'medical' ORDER BY linked_at DESC LIMIT 1", args: [uid] });
+    return r.rows[0] ? String(r.rows[0].master_id) : null;
+}
+
 /** শুধু পাঠানো ঘরগুলো বদলায়; ভুল মান হলে বাংলা আর ইংরেজি বার্তা ফেরত দেয় */
 export async function updateAccount(uid: string, body: Record<string, unknown>): Promise<[string, string] | null> {
     const sets: string[] = [];

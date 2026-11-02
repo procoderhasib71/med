@@ -133,12 +133,12 @@ export function BotPanel({ acc }: { acc: Account }) {
             {linked && !code && <p className="text-sm text-slate-500">{t('বটের সাথে যুক্ত আছে। বটে /mode দিয়ে কোর্স বদলানো যায়।', 'Linked to the bot. Use /mode in the bot to switch course.')}</p>}
             {code ? (
                 <div className="space-y-2 text-sm">
-                    <p className="text-slate-500">{t('১৫ মিনিটের মধ্যে বটে লিখুন:', 'Send this to the bot within 15 minutes:')}</p>
+                    <a href={`https://t.me/Machranga_ai_bot?start=${code}`} target="_blank" rel="noopener noreferrer" className="block text-center py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">{t('বট খুলে Start চাপুন', 'Open the bot and tap Start')}</a>
+                    <p className="text-slate-500">{t('না হলে ১৫ মিনিটের মধ্যে বটে লিখুন:', 'Or send this to the bot within 15 minutes:')}</p>
                     <button onClick={() => { navigator.clipboard.writeText(`/site ${code}`); setCopied(true); }}
                         className="w-full flex justify-between items-center px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-950 font-mono font-bold cursor-pointer">
                         /site {code} {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                     </button>
-                    <a href="https://t.me/Machranga_ai_bot" target="_blank" rel="noopener noreferrer" className="block text-center py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">{t('বট খুলুন', 'Open the bot')}</a>
                 </div>
             ) : (
                 <button onClick={async () => setCode(await acc.linkCode())} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold cursor-pointer">
