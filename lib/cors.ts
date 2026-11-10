@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 // cookie পাঠানো হয় না (credentials ছাড়া CORS), তাই যেকোনো origin খোলা রাখলেও অন্য কেউ কারো ডাটা পায় না।
 export const CORS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Max-Age': '86400',
 };
