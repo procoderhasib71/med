@@ -17,8 +17,13 @@ const db = () => getFirestore(getApps()[0]);
 
 /** Turso: এই uid এর সব সারি; রিপোর্ট করা প্রশ্নগুলো থাকে কিন্তু কে করেছে সেটা মুছে যায় */
 async function deleteTurso(uid: string) {
-    const masters = await turso.execute({ sql: 'SELECT DISTINCT master_id FROM hermes_site_links WHERE site_uid = ?', args: [uid] });
-    const masterIds = masters.rows.map((r) => String(r.master_id));
+    // কোনো টেবিল এখনো তৈরি না হলে (যেমন নতুন ফিচারের টেবিল) সেটা বাদ দিই; নইলে পুরো batch ব্যর্থ হয়
+    const tables = await turso.execute("SELECT name FROM sqlite_master WHERE type = 'table'");
+    const exists = new Set(tables.rows.map((r) => String(r.name)));
+
+    const masterIds = exists.has('hermes_site_links')
+        ? (await turso.execute({ sql: 'SELECT DISTINCT master_id FROM hermes_site_links WHERE site_uid = ?', args: [uid] })).rows.map((r) => String(r.master_id))
+        : [];
 
     const perUid = ['site_solved', 'site_mistakes', 'site_bookmarks', 'site_progress', 'site_progress_v2', 'site_exam_results',
         'site_link_codes', 'site_enrollments', 'site_scores'];
@@ -33,7 +38,8 @@ async function deleteTurso(uid: string) {
         ...masterIds.map((mid) => ({ sql: "DELETE FROM hermes_reminders WHERE master_id = ? AND style IN ('pomotask', 'pomodoro', 'pomobot')", args: [mid] })),
         { sql: 'DELETE FROM hermes_site_links WHERE site_uid = ?', args: [uid] },
     ];
-    await turso.batch(stmts, 'write');
+    const tableOf = (sql: string) => /^(?:DELETE FROM|UPDATE)\s+(\w+)/i.exec(sql)?.[1] || '';
+    await turso.batch(stmts.filter((s) => exists.has(tableOf(s.sql))), 'write');
 }
 
 /** Firestore: Money আর Pomodoro এর সব হিসাব, লিডারবোর্ড, গ্রুপ চ্যাটে নিজের মেসেজ */
