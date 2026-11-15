@@ -2,6 +2,7 @@
 
 import { useCourse } from '@/components/CourseProvider';
 import type { Platform } from '@/lib/platform';
+import { COLORS, useMyAvatar } from '@/lib/avatar';
 
 // প্রোফাইলের ছবি: চালু কোর্স অনুযায়ী একটা নির্দিষ্ট চরিত্র, গোল আর হালকা রঙের পটভূমিতে।
 // মেডিকেলে সাদা অ্যাপ্রন আর গলায় স্টেথোস্কোপসহ ডাক্তার, ভার্সিটিতে গ্র্যাজুয়েশন টুপি, ইঞ্জিনিয়ারিংয়ে হেলমেট।
@@ -74,6 +75,16 @@ function Figure({ p }: { p: Platform }) {
 export default function CourseAvatar({ className = 'w-9 h-9', platform }: { className?: string; rounded?: string; platform?: Platform }) {
     const { info } = useCourse();
     const p = platform || info?.current || 'med';
+    const mine = useMyAvatar();
+    // প্রোফাইলে অবতার বাছা থাকলে সেটাই (Focus আর Money এর সাথে এক); না থাকলে কোর্সের চরিত্র
+    if (mine.avatar) {
+        const [from, to] = COLORS[mine.avColor || ''] || COLORS.indigo;
+        return (
+            <span className={`inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 ${className}`} style={{ background: `linear-gradient(135deg, ${from}, ${to})`, containerType: 'inline-size' }}>
+                <span className="leading-none" style={{ fontSize: '52cqw' }}>{mine.avatar}</span>
+            </span>
+        );
+    }
     return (
         <span className={`inline-block rounded-full overflow-hidden shrink-0 ${className}`}>
             <Figure p={p} />

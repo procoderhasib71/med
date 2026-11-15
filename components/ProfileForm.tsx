@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useLang } from '@/lib/i18n';
+import { AVATARS, COLORS, loadMyAvatar, saveMyAvatar, type Look } from '@/lib/avatar';
 
 // এক প্রোফাইল (AdMCQ, Pomodoro, Money): নাম, ছেলে/মেয়ে, পড়ার ধরন, স্কুল/কলেজ, HSC ব্যাচ (ঐচ্ছিক)।
 // অন্য অ্যাপে পূরণ করা থাকলে এখানে সেটাই বসানো থাকে। /api/account এ সেভ হয়।
@@ -22,10 +23,12 @@ export type AccountForm = { name: string; gender: string; studyLevel: string; in
 export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: AccountForm) => void; submitText?: string }) {
     const { t } = useLang();
     const [f, setF] = useState<AccountForm>({ name: '', gender: '', studyLevel: '', institution: '', hscBatch: '' });
+    const [look, setLook] = useState<Look>({});
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+    useEffect(() => { void loadMyAvatar().then(setLook); }, []);
     useEffect(() => {
         authFetch('/api/account', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
             if (d?.success) setF({ name: d.account.name, gender: d.account.gender, studyLevel: d.account.studyLevel,
@@ -42,6 +45,7 @@ export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: Acc
         const d = await authFetch('/api/account', { method: 'PATCH', body: JSON.stringify(f) }).then((r) => r.json()).catch(() => null);
         setBusy(false);
         if (!d?.success) return setMsg({ ok: false, text: d?.error || t('সেভ করা যায়নি', 'Could not save') });
+        await saveMyAvatar(look).catch(() => undefined);
         setMsg({ ok: true, text: t('প্রোফাইল সেভ হয়েছে', 'Profile saved') });
         onSaved?.(f);
     };
@@ -50,6 +54,23 @@ export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: Acc
 
     return (
         <form onSubmit={save} className="space-y-4">
+            <div>
+                <span className={label}>{t('অবতার', 'Avatar')}</span>
+                <div className="flex flex-wrap gap-1.5">
+                    <button type="button" onClick={() => setLook({ ...look, avatar: '' })} className={`px-2.5 h-9 rounded-xl text-[11px] font-bold border cursor-pointer ${!look.avatar ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}>{t('কোর্সের ছবি', 'Course figure')}</button>
+                    {AVATARS.map((e) => (
+                        <button type="button" key={e} onClick={() => setLook({ avatar: e, avColor: look.avColor || 'indigo' })} className={`w-9 h-9 rounded-xl text-lg border cursor-pointer ${look.avatar === e ? 'border-emerald-500 bg-emerald-500/10 scale-105' : 'border-slate-200 dark:border-slate-700'}`}>{e}</button>
+                    ))}
+                </div>
+                {look.avatar && (
+                    <div className="flex flex-wrap gap-2 mt-2.5">
+                        {Object.entries(COLORS).map(([k, [from, to]]) => (
+                            <button type="button" key={k} onClick={() => setLook({ ...look, avColor: k })} aria-label={k} className={`w-6 h-6 rounded-full cursor-pointer ${(look.avColor || 'indigo') === k ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-white/60 ring-offset-white dark:ring-offset-[#0b111d] scale-110' : ''}`} style={{ background: `linear-gradient(135deg, ${from}, ${to})` }} />
+                        ))}
+                    </div>
+                )}
+                <p className="text-[11px] text-slate-500 mt-1.5">{t('একই অবতার Shongi Focus, Money আর AdMCQ তে।', 'Same avatar in Shongi Focus, Money and AdMCQ.')}</p>
+            </div>
             <div>
                 <label className={label}>{t('নাম', 'Name')}</label>
                 <input className={input} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={t('যেমন: রাফি আহমেদ', 'e.g. Rafi Ahmed')} required minLength={2} />
