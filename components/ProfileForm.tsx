@@ -24,6 +24,7 @@ export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: Acc
     const { t } = useLang();
     const [f, setF] = useState<AccountForm>({ name: '', gender: '', studyLevel: '', institution: '', hscBatch: '' });
     const [look, setLook] = useState<Look>({});
+    const [showAll, setShowAll] = useState(false);   // শুরুতে অল্প কয়েকটা অবতার, "আরও" চাপলে সব
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -73,9 +74,10 @@ export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: Acc
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                     <button type="button" onClick={() => setLook({ ...look, avatar: '', photo: '' })} className={`px-2.5 h-9 rounded-xl text-[11px] font-bold border cursor-pointer ${!look.avatar && !look.photo ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}>{t('কোর্সের ছবি', 'Course figure')}</button>
-                    {AVATARS.map((e) => (
+                    {(showAll ? AVATARS : [...AVATARS.slice(0, 8), ...(look.avatar && AVATARS.indexOf(look.avatar) >= 8 ? [look.avatar] : [])]).map((e) => (
                         <button type="button" key={e} onClick={() => setLook({ avatar: e, avColor: look.avColor || 'indigo', photo: '' })} className={`w-9 h-9 rounded-xl text-lg border cursor-pointer ${!look.photo && look.avatar === e ? 'border-emerald-500 bg-emerald-500/10 scale-105' : 'border-slate-200 dark:border-slate-700'}`}>{e}</button>
                     ))}
+                    <button type="button" onClick={() => setShowAll(!showAll)} className="px-2.5 h-9 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-slate-700 text-slate-500 cursor-pointer">{showAll ? t('কম', 'Less') : t('আরও', 'More')}</button>
                 </div>
                 {look.avatar && !look.photo && (
                     <div className="flex flex-wrap gap-2 mt-2.5">
