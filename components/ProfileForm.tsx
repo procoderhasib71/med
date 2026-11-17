@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { authFetch } from '@/lib/authFetch';
 import { useLang } from '@/lib/i18n';
-import { AVATARS, COLORS, loadMyAvatar, saveMyAvatar, type Look } from '@/lib/avatar';
+import { AVATARS, COLORS, fileToPhoto, loadMyAvatar, saveMyAvatar, type Look } from '@/lib/avatar';
 
 // এক প্রোফাইল (AdMCQ, Pomodoro, Money): নাম, ছেলে/মেয়ে, পড়ার ধরন, স্কুল/কলেজ, HSC ব্যাচ (ঐচ্ছিক)।
 // অন্য অ্যাপে পূরণ করা থাকলে এখানে সেটাই বসানো থাকে। /api/account এ সেভ হয়।
@@ -56,20 +56,35 @@ export default function ProfileForm({ onSaved, submitText }: { onSaved?: (a: Acc
         <form onSubmit={save} className="space-y-4">
             <div>
                 <span className={label}>{t('অবতার', 'Avatar')}</span>
+                <div className="flex items-center gap-2 mb-2.5">
+                    {look.photo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={look.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    )}
+                    <label className="cursor-pointer px-3 h-9 inline-flex items-center rounded-xl text-[12px] font-bold bg-emerald-500 text-black">
+                        📷 {look.photo ? t('অন্য ছবি দাও', 'Change photo') : t('নিজের ছবি দাও', 'Upload photo')}
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                            const file = e.target.files?.[0]; e.target.value = '';
+                            if (!file) return;
+                            try { setLook({ ...look, photo: await fileToPhoto(file) }); } catch { /* ভুল ফাইল: কিছু বদলায় না */ }
+                        }} />
+                    </label>
+                    {look.photo && <button type="button" onClick={() => setLook({ ...look, photo: '' })} className="px-3 h-9 rounded-xl text-[12px] font-bold border border-slate-200 dark:border-slate-700 text-slate-500 cursor-pointer">{t('ছবি সরাও', 'Remove photo')}</button>}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                    <button type="button" onClick={() => setLook({ ...look, avatar: '' })} className={`px-2.5 h-9 rounded-xl text-[11px] font-bold border cursor-pointer ${!look.avatar ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}>{t('কোর্সের ছবি', 'Course figure')}</button>
+                    <button type="button" onClick={() => setLook({ ...look, avatar: '', photo: '' })} className={`px-2.5 h-9 rounded-xl text-[11px] font-bold border cursor-pointer ${!look.avatar && !look.photo ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}>{t('কোর্সের ছবি', 'Course figure')}</button>
                     {AVATARS.map((e) => (
-                        <button type="button" key={e} onClick={() => setLook({ avatar: e, avColor: look.avColor || 'indigo' })} className={`w-9 h-9 rounded-xl text-lg border cursor-pointer ${look.avatar === e ? 'border-emerald-500 bg-emerald-500/10 scale-105' : 'border-slate-200 dark:border-slate-700'}`}>{e}</button>
+                        <button type="button" key={e} onClick={() => setLook({ avatar: e, avColor: look.avColor || 'indigo', photo: '' })} className={`w-9 h-9 rounded-xl text-lg border cursor-pointer ${!look.photo && look.avatar === e ? 'border-emerald-500 bg-emerald-500/10 scale-105' : 'border-slate-200 dark:border-slate-700'}`}>{e}</button>
                     ))}
                 </div>
-                {look.avatar && (
+                {look.avatar && !look.photo && (
                     <div className="flex flex-wrap gap-2 mt-2.5">
                         {Object.entries(COLORS).map(([k, [from, to]]) => (
                             <button type="button" key={k} onClick={() => setLook({ ...look, avColor: k })} aria-label={k} className={`w-6 h-6 rounded-full cursor-pointer ${(look.avColor || 'indigo') === k ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-white/60 ring-offset-white dark:ring-offset-[#0b111d] scale-110' : ''}`} style={{ background: `linear-gradient(135deg, ${from}, ${to})` }} />
                         ))}
                     </div>
                 )}
-                <p className="text-[11px] text-slate-500 mt-1.5">{t('একই অবতার Shongi Focus, Money আর AdMCQ তে।', 'Same avatar in Shongi Focus, Money and AdMCQ.')}</p>
+                <p className="text-[11px] text-slate-500 mt-1.5">{t('একই ছবি বা অবতার Shongi Focus, Money, AdMCQ আর পোর্টালে।', 'Same photo or avatar in Shongi Focus, Money, AdMCQ and the portal.')}</p>
             </div>
             <div>
                 <label className={label}>{t('নাম', 'Name')}</label>

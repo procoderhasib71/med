@@ -11,7 +11,7 @@ export const COLORS: Record<string, [string, string]> = {
     indigo: ['#6366f1', '#8b5cf6'], rose: ['#f43f5e', '#fb923c'], emerald: ['#10b981', '#14b8a6'], sky: ['#0ea5e9', '#6366f1'],
     amber: ['#f59e0b', '#ef4444'], pink: ['#ec4899', '#a855f7'], teal: ['#14b8a6', '#0ea5e9'], slate: ['#475569', '#1e293b'],
 };
-export type Look = { avatar?: string; avColor?: string };
+export type Look = { avatar?: string; avColor?: string; photo?: string };
 
 const url = (uid: string) =>
     `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/profile/avatar`;
@@ -23,20 +23,20 @@ export async function loadMyAvatar(): Promise<Look> {
         const r = await fetch(url(u.uid), { headers: { Authorization: `Bearer ${await u.getIdToken()}` }, cache: 'no-store' });
         if (!r.ok) return {};
         const f = (await r.json()).fields || {};
-        return { avatar: f.avatar?.stringValue || '', avColor: f.avColor?.stringValue || 'indigo' };
+        return { avatar: f.avatar?.stringValue || '', avColor: f.avColor?.stringValue || 'indigo', photo: f.photo?.stringValue || '' };
     } catch { return {}; }
 }
 
 export async function saveMyAvatar(look: Look): Promise<void> {
     const u = auth.currentUser;
     if (!u) return;
-    const r = await fetch(`${url(u.uid)}?updateMask.fieldPaths=avatar&updateMask.fieldPaths=avColor`, {
+    const r = await fetch(`${url(u.uid)}?updateMask.fieldPaths=avatar&updateMask.fieldPaths=avColor&updateMask.fieldPaths=photo`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${await u.getIdToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { avatar: { stringValue: look.avatar || '' }, avColor: { stringValue: look.avColor || 'indigo' } } }),
+        body: JSON.stringify({ fields: { avatar: { stringValue: look.photo ? '' : look.avatar || '' }, avColor: { stringValue: look.avColor || 'indigo' }, photo: { stringValue: look.photo || '' } } }),
     });
     if (!r.ok) throw new Error('avatar save failed');
-    cache = { avatar: look.avatar || '', avColor: look.avColor || 'indigo' };
+    cache = { avatar: look.photo ? '' : look.avatar || '', avColor: look.avColor || 'indigo', photo: look.photo || '' };
     window.dispatchEvent(new Event('avatar-changed'));
 }
 
@@ -57,4 +57,23 @@ export function useMyAvatar(): Look {
         return () => { live = false; off(); window.removeEventListener('avatar-changed', sync); };
     }, []);
     return look;
+}
+
+/** ছবি ফাইল → মাঝখান থেকে কাটা ১৬০×১৬০ JPEG (data URL, ~১০-২০KB): অবতারের একই ডকে `photo` হিসেবে থাকে */
+export function fileToPhoto(file: File, size = 160): Promise<string> {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) return reject(new Error('not an image'));
+        const src = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const s = Math.min(img.width, img.height);
+            const c = document.createElement('canvas');
+            c.width = c.height = size;
+            c.getContext('2d')!.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+            URL.revokeObjectURL(src);
+            resolve(c.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = () => { URL.revokeObjectURL(src); reject(new Error('bad image')); };
+        img.src = src;
+    });
 }

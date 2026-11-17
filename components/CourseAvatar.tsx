@@ -76,7 +76,15 @@ export default function CourseAvatar({ className = 'w-9 h-9', platform }: { clas
     const { info } = useCourse();
     const p = platform || info?.current || 'med';
     const mine = useMyAvatar();
-    // প্রোফাইলে অবতার বাছা থাকলে সেটাই (Focus আর Money এর সাথে এক); না থাকলে কোর্সের চরিত্র
+    // প্রোফাইলে নিজের ছবি বা অবতার বাছা থাকলে সেটাই (Focus আর Money এর সাথে এক); না থাকলে কোর্সের চরিত্র
+    if (mine.photo) {
+        return (
+            <span className={`inline-block rounded-full overflow-hidden shrink-0 bg-slate-200 ${className}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mine.photo} alt="" className="w-full h-full object-cover" />
+            </span>
+        );
+    }
     if (mine.avatar) {
         const [from, to] = COLORS[mine.avColor || ''] || COLORS.indigo;
         return (
