@@ -1,0 +1,237 @@
+{
+  "English": {
+    "Chapter 01: Basic Sentence Structure": {
+      "topics": [
+        "Basic Sentence Structure"
+      ],
+      "sources": [
+        "Admission"
+      ]
+    },
+    "Chapter 02: Noun & Determiner, Article, Number & Gender": {
+      "topics": [
+        "Article",
+        "Gender",
+        "Noun & Determiner",
+        "Number"
+      ],
+      "sources": [
+        "Admission",
+        "BCS",
+        "Job Exams"
+      ]
+    },
+    "Chapter 03: Pronoun & Antecedent": {
+      "topics": [
+        "Pronoun & Antecedent"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 04: Verb & Its Types, Modals & Verbals": {
+      "topics": [
+        "Causative & Linking Verb",
+        "Use of Modals",
+        "Verb & Its Types",
+        "Verbals"
+      ],
+      "sources": [
+        "Admission",
+        "BCS",
+        "Job Exams"
+      ]
+    },
+    "Chapter 05: Forms of Verbs": {
+      "topics": [
+        "Conditionals",
+        "Right Form of Verbs",
+        "Subject Verb Agreement",
+        "Subjunctive"
+      ],
+      "sources": [
+        "Admission",
+        "BCS",
+        "Board",
+        "Job Exams"
+      ]
+    },
+    "Chapter 06: Tense & Sequence of Tense": {
+      "topics": [
+        "Tense & Sequence of Tense"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 07: Adjective & Degree of Comparison": {
+      "topics": [
+        "Adjective & Degree of Comparison"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 08: Adverb & Inversion, Agreements": {
+      "topics": [
+        "Adverb & Inversion",
+        "Agreements"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 09: Preposition & Appropriate Preposition": {
+      "topics": [
+        "Preposition & Appropriate Preposition"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 10: Conjunction, Linkers & Connectors": {
+      "topics": [
+        "Conjunction",
+        "Linkers & Connectors"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 11: Transformation": {
+      "topics": [
+        "Transformation of Sentences",
+        "Voice"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 12: Narration": {
+      "topics": [
+        "Narration"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 13: Tag & Embedded Questions": {
+      "topics": [
+        "Embedded Question",
+        "Tag Question"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 14: Phrase & Clause": {
+      "topics": [
+        "Clause",
+        "Phrase"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 15: Modifiers": {
+      "topics": [
+        "Modifiers"
+      ],
+      "sources": [
+        "Admission"
+      ]
+    },
+    "Chapter 16: Correction of Sentence": {
+      "topics": [
+        "Parallelism",
+        "Pin Point Error Detection",
+        "Punctuation",
+        "Redundancy",
+        "Sentence Correction"
+      ],
+      "sources": [
+        "Admission",
+        "BCS",
+        "Job Exams"
+      ]
+    },
+    "Chapter 17: Completion of Sentence": {
+      "topics": [
+        "Completing Sentences",
+        "Sentence Completion"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 18: Translations & Proverbs, Idioms & Phrases": {
+      "topics": [
+        "Translations & Proverbs, Idioms & Phrases"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 19: Memorizing": {
+      "topics": [
+        "Analogy",
+        "Group Verb",
+        "One Word Substitution",
+        "Same Word Different Parts of Speech",
+        "Spelling",
+        "Suffix-Prefix & Interchange of Part of Speech",
+        "Vocabulary"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 21: Text Book (Info Based)": {
+      "topics": [
+        "Text Book (Info Based)"
+      ],
+      "sources": [
+        "Admission"
+      ]
+    },
+    "Chapter 22: English Literature": {
+      "topics": [
+        "English Literature"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 23: Common Mistakes": {
+      "topics": [
+        "Common Mistakes"
+      ],
+      "sources": [
+        "Admission",
+        "BCS"
+      ]
+    },
+    "Chapter 24: Miscellaneous": {
+      "topics": [
+        "Miscellaneous"
+      ],
+      "sources": [
+        "Admission"
+      ]
+    }
+  }
+}

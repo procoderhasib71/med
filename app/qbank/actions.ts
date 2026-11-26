@@ -1,6 +1,6 @@
 'use server';
 
-import { questionTable, tableOfId } from '@/lib/questionTable';
+import { questionTable, tableOfId, QUESTION_TABLES } from '@/lib/questionTable';
 import { turso } from '@/lib/turso';
 import { currentPlatform } from '@/lib/currentPlatform';
 import { visibleSql } from '@/lib/questionVisibility';
@@ -31,7 +31,7 @@ const serverSingleIdCache = new Map<string, Question>();
 const CACHE_TTL = 1000 * 60 * 60;   // ১ ঘণ্টা, যাতে বট থেকে ঠিক করা উত্তরও তাড়াতাড়ি দেখায়
 
 // ভার্সিটি 'ক' এর প্রশ্নের শুরুতে বইয়ের ছাপা নম্বর আছে ("৯। ..."), কার্ডে নিজস্ব নম্বর থাকে বলে সেটা দেখানো হয় না
-const cleanQuestion = (id: string, text: string) => (id.startsWith('ka_') ? text.replace(/^\s*[0-9০-৯]{1,4}\s*[।.)]\s+/, '') : text);
+const cleanQuestion = (id: string, text: string) => (/^kha?_/.test(id) ? text.replace(/^\s*[0-9০-৯]{1,4}\s*[।.)]\s+/, '') : text);
 
 export async function fetchFilteredQuestions(page: number, filters: any): Promise<Question[]> {
     // কোন কোর্স (সাইটের ঠিকানা বা ক্লাসরুমে বাছাই করা), শুধু সেই প্ল্যাটফর্মের প্রশ্ন
@@ -142,7 +142,7 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
         const CHUNK_SIZE = 50;
         // একই তালিকায় দুই টেবিলের id থাকতে পারে (বুকমার্ক, ভুলের তালিকা), তাই টেবিল ধরে আলাদা করে আনা
         const chunks: string[][] = [];
-        for (const table of ['questions', 'ka_questions']) {
+        for (const table of QUESTION_TABLES) {
             const mine = missingIds.filter((id) => tableOfId(String(id)) === table);
             for (let i = 0; i < mine.length; i += CHUNK_SIZE) chunks.push(mine.slice(i, i + CHUNK_SIZE));
         }
