@@ -1,5 +1,6 @@
 'use server';
 
+import { questionTable, tableOfId } from '@/lib/questionTable';
 import { turso } from '@/lib/turso';
 import { currentPlatform } from '@/lib/currentPlatform';
 import { visibleSql } from '@/lib/questionVisibility';
@@ -41,7 +42,7 @@ export async function fetchFilteredQuestions(page: number, filters: any): Promis
         return cachedEntry.data;
     }
 
-    let sql = `SELECT * FROM questions WHERE platform = ? AND ${visibleSql()}`;
+    let sql = `SELECT * FROM ${questionTable(platform)} WHERE platform = ? AND ${visibleSql()}`;
     let args: string[] = [platform];
 
     if (filters.subject) {
@@ -136,10 +137,15 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
     // ২. মিসিং আইডিগুলো চাঙ্ক আকারে Turso থেকে ফেচ করা (SQLite সীমা সুরক্ষা)
     if (missingIds.length > 0) {
         const CHUNK_SIZE = 50;
-        for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
-            const chunk = missingIds.slice(i, i + CHUNK_SIZE);
+        // একই তালিকায় দুই টেবিলের id থাকতে পারে (বুকমার্ক, ভুলের তালিকা), তাই টেবিল ধরে আলাদা করে আনা
+        const chunks: string[][] = [];
+        for (const table of ['questions', 'ka_questions']) {
+            const mine = missingIds.filter((id) => tableOfId(String(id)) === table);
+            for (let i = 0; i < mine.length; i += CHUNK_SIZE) chunks.push(mine.slice(i, i + CHUNK_SIZE));
+        }
+        for (const chunk of chunks) {
             const placeholders = chunk.map(() => '?').join(',');
-            const sql = `SELECT * FROM questions WHERE id IN (${placeholders}) AND ${visibleSql()}`;
+            const sql = `SELECT * FROM ${tableOfId(String(chunk[0]))} WHERE id IN (${placeholders}) AND ${visibleSql()}`;
 
             try {
                 const res = await turso.execute({ sql, args: chunk });

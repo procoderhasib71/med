@@ -1,4 +1,5 @@
 import { turso } from '@/lib/turso';
+import { questionTable, tableOfId } from '@/lib/questionTable';
 import { clearServerCache } from '@/app/qbank/actions';
 
 // টেবিলগুলো মাছরাঙা বটের migration (007_mcq.sql) বানায়, একই Turso DB তে।
@@ -7,7 +8,7 @@ import { clearServerCache } from '@/app/qbank/actions';
 const OPTIONS = ['a', 'b', 'c', 'd'];
 
 async function backupAndSet(questionId: string, field: 'correct_option' | 'explanation', value: string, by: string, reportId = '') {
-    const cur = await turso.execute({ sql: `SELECT ${field} AS v FROM questions WHERE id = ?`, args: [questionId] });
+    const cur = await turso.execute({ sql: `SELECT ${field} AS v FROM ${tableOfId(questionId)} WHERE id = ?`, args: [questionId] });
     if (cur.rows.length === 0) throw new Error('প্রশ্ন পাওয়া যায়নি');
     const old = String(cur.rows[0].v ?? '');
     const now = new Date().toISOString();
@@ -17,7 +18,7 @@ async function backupAndSet(questionId: string, field: 'correct_option' | 'expla
             sql: 'INSERT INTO hermes_mcq_fixes (question_id, field, old_value, new_value, fixed_by, report_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
             args: [questionId, field, old, value, by, reportId, now],
         },
-        { sql: `UPDATE questions SET ${field} = ?${setError} WHERE id = ?`, args: [value, questionId] },
+        { sql: `UPDATE ${tableOfId(questionId)} SET ${field} = ?${setError} WHERE id = ?`, args: [value, questionId] },
     ], 'write');
     await clearServerCache();
     return old;
@@ -84,11 +85,11 @@ export async function listAiReview(platform: string, opts: { subject?: string; t
         turso.execute({
             sql: `SELECT id, subject, chapter, topic, question, option_a, option_b, option_c, option_d, correct_option,
                          explanation, error, new_correct_option, new_explanation, ${AI_TYPE} AS ai_type, ${AI_SRC} AS ai_src
-                  FROM questions WHERE ${where.join(' AND ')} ORDER BY subject, id LIMIT ? OFFSET ?`,
+                  FROM ${questionTable(platform)} WHERE ${where.join(' AND ')} ORDER BY subject, id LIMIT ? OFFSET ?`,
             args: [...args, limit, offset],
         }),
         turso.execute({
-            sql: `SELECT subject, ${AI_TYPE} AS ai_type, ${AI_SRC} AS ai_src, COUNT(*) AS n FROM questions WHERE platform = ? AND ${AI_PENDING} GROUP BY 1, 2, 3`,
+            sql: `SELECT subject, ${AI_TYPE} AS ai_type, ${AI_SRC} AS ai_src, COUNT(*) AS n FROM ${questionTable(platform)} WHERE platform = ? AND ${AI_PENDING} GROUP BY 1, 2, 3`,
             args: [platform],
         }),
     ]);
@@ -100,7 +101,7 @@ export async function listAiReview(platform: string, opts: { subject?: string; t
 
 /** বদলানো প্রতিটা ঘরের পুরনো মান hermes_mcq_fixes এ রেখে একসাথে আপডেট; error এ রিভিউয়ের ফল লেখে */
 async function applyFields(questionId: string, edits: Partial<Record<Editable, string>>, status: string, by: string) {
-    const cur = await turso.execute({ sql: `SELECT ${EDITABLE.join(', ')}, error FROM questions WHERE id = ?`, args: [questionId] });
+    const cur = await turso.execute({ sql: `SELECT ${EDITABLE.join(', ')}, error FROM ${tableOfId(questionId)} WHERE id = ?`, args: [questionId] });
     if (cur.rows.length === 0) throw new Error('প্রশ্ন পাওয়া যায়নি');
     const row = cur.rows[0];
     const now = new Date().toISOString();
@@ -110,7 +111,7 @@ async function applyFields(questionId: string, edits: Partial<Record<Editable, s
         args: [questionId, f, String(row[f] ?? ''), f === 'error' ? status : String(edits[f]), by, 'ai-review', now],
     }));
     const sets = [...changed.map((f) => `${f} = ?`), 'error = ?'];
-    stmts.push({ sql: `UPDATE questions SET ${sets.join(', ')} WHERE id = ?`, args: [...changed.map((f) => String(edits[f])), status, questionId] });
+    stmts.push({ sql: `UPDATE ${tableOfId(questionId)} SET ${sets.join(', ')} WHERE id = ?`, args: [...changed.map((f) => String(edits[f])), status, questionId] });
     await turso.batch(stmts, 'write');
     await clearServerCache();
     return changed;
@@ -125,7 +126,7 @@ export async function reviewAiFix(questionId: string, action: 'apply' | 'keep' |
     if (action === 'keep') return applyFields(questionId, {}, 'Verified OK', by);
 
     if (action === 'apply') {
-        const r = await turso.execute({ sql: 'SELECT correct_option, error, new_correct_option, new_explanation FROM questions WHERE id = ?', args: [questionId] });
+        const r = await turso.execute({ sql: `SELECT correct_option, error, new_correct_option, new_explanation FROM ${tableOfId(questionId)} WHERE id = ?`, args: [questionId] });
         if (r.rows.length === 0) throw new Error('প্রশ্ন পাওয়া যায়নি');
         const opt = String(r.rows[0].new_correct_option ?? '').trim().toLowerCase();
         const text = (edits.explanation ?? String(r.rows[0].new_explanation ?? '')).trim();

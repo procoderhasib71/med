@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
 import { platformOf, requireAdmin } from '@/lib/serverAuth';
 import { visibleSql } from '@/lib/questionVisibility';
+import { questionTable } from '@/lib/questionTable';
 
 const turso = createClient({
     url: process.env.TURSO_DATABASE_URL!,
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
 
         const sql = `
             SELECT id, subject, chapter, topic, question, option_a, option_b, option_c, option_d, correct_option, explanation, tag, source
-            FROM questions
+            FROM ${questionTable(platformOf(req))}
             WHERE ${conditions.join(' AND ')}
             ORDER BY id DESC
             LIMIT ?

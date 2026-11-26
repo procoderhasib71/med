@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { questionTable } from '@/lib/questionTable';
 import type { Platform } from '@/lib/platform';
 import { platformOf } from '@/lib/serverAuth';
 import { turso } from '@/lib/turso';
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const hit = cache.get(p);
     if (hit && Date.now() - hit.at < TTL) return NextResponse.json({ success: true, subjects: hit.rows });
     const r = await turso.execute({
-        sql: `SELECT subject, COUNT(*) n FROM questions WHERE platform = ? AND subject <> '' AND ${visibleSql()} GROUP BY subject ORDER BY n DESC`,
+        sql: `SELECT subject, COUNT(*) n FROM ${questionTable(p)} WHERE platform = ? AND subject <> '' AND ${visibleSql()} GROUP BY subject ORDER BY n DESC`,
         args: [p],
     });
     const rows = r.rows.map((x) => ({ subject: String(x.subject), count: Number(x.n) || 0 }));

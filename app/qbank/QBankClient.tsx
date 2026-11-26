@@ -24,6 +24,7 @@ import { onAuthStateChanged } from '@/lib/session';
 import { session as auth } from '@/lib/session';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 import syllabusData from '@/app/constants/syllabusData.json';
+import syllabusKa from '@/app/constants/syllabusKa.json';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                          */
@@ -47,7 +48,9 @@ const inflightKey = (uid: string) => `${inflightPrefix(uid)}${TAB_ID}`;
 const INFLIGHT_STALE_MS = 30 * 1000;
 
 
-const syllabus = syllabusData as Record<string, Record<string, { topics: string[]; sources: string[] }>>;
+type Syllabus = Record<string, Record<string, { topics: string[]; sources: string[] }>>;
+// ভার্সিটি 'ক' এর অধ্যায়/টপিক আলাদা (ka_questions থেকে বানানো)
+const syllabusFor = (platform?: string) => (platform === 'ka' ? syllabusKa : syllabusData) as Syllabus;
 
 const emptyFilters = {
     subject: '',
@@ -302,7 +305,8 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 /* Main Client Logic                                                  */
 /* ------------------------------------------------------------------ */
 
-function QBankInner() {
+function QBankInner({ platform }: { platform?: string }) {
+    const syllabus = syllabusFor(platform);
     const searchParams = useSearchParams();
     const { t } = useLang();
     const router = useRouter();
@@ -1146,12 +1150,12 @@ function QBankInner() {
     );
 }
 
-export default function QBankClient() {
+export default function QBankClient({ platform }: { platform?: string }) {
     return (
         <Suspense
             fallback={<BrandLoader />}
         >
-            <QBankInner />
+            <QBankInner platform={platform} />
         </Suspense>
     );
 }

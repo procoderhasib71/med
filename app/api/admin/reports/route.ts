@@ -8,8 +8,9 @@ export async function GET(req: NextRequest) {
     const admin = await requireAdmin(req);
     if (admin instanceof NextResponse) return admin;
     const r = await turso.execute(`
-        SELECT r.*, q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.subject, q.chapter
-        FROM site_reports r LEFT JOIN questions q ON q.id = r.question_id
+        SELECT r.*, COALESCE(q.question, k.question) AS question, COALESCE(q.option_a, k.option_a) AS option_a, COALESCE(q.option_b, k.option_b) AS option_b, COALESCE(q.option_c, k.option_c) AS option_c,
+               COALESCE(q.option_d, k.option_d) AS option_d, COALESCE(q.correct_option, k.correct_option) AS correct_option, COALESCE(q.subject, k.subject) AS subject, COALESCE(q.chapter, k.chapter) AS chapter
+        FROM site_reports r LEFT JOIN questions q ON q.id = r.question_id LEFT JOIN ka_questions k ON k.id = r.question_id
         ORDER BY CASE WHEN r.status = 'pending' THEN 0 ELSE 1 END, r.created_at DESC LIMIT 200`);
     const reports = r.rows.map((x) => ({
         id: String(x.id), questionId: String(x.question_id), question: String(x.question || '(প্রশ্নটা আর নেই)'),

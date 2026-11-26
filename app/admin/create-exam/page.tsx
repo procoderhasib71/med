@@ -28,6 +28,8 @@ import { authFetch } from '@/lib/authFetch';
 import AdminGate from '@/components/AdminGate';
 import { useLang } from '@/lib/i18n';
 import syllabusData from '@/app/constants/syllabusData.json';
+import syllabusKa from '@/app/constants/syllabusKa.json';
+import { clientPlatform } from '@/lib/platform';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
 export interface Question {
@@ -46,7 +48,7 @@ export interface Question {
     explanation?: string;
 }
 
-const syllabus = syllabusData as Record<string, Record<string, { topics: string[]; sources: string[] }>>;
+type Syllabus = Record<string, Record<string, { topics: string[]; sources: string[] }>>;
 
 const emptyFilters = {
     subject: '',
@@ -113,6 +115,9 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 }
 
 function AdminCreateExamInner() {
+    // ভার্সিটি 'ক' তে অধ্যায়/টপিকের তালিকা আলাদা (পাতা খোলার পরে ঠিকানা/কোর্স দেখে বসে)
+    const [syllabus, setSyllabus] = useState(syllabusData as unknown as Syllabus);
+    useEffect(() => { if (clientPlatform() === 'ka') setSyllabus(syllabusKa as unknown as Syllabus); }, []);
     const { isDarkMode, toggleTheme } = useTheme();
     const { t } = useLang();
     const router = useRouter();
