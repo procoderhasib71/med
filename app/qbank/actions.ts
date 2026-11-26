@@ -30,6 +30,9 @@ const serverSingleIdCache = new Map<string, Question>();
 // Cache 24 hours por expire hobe (milliseconds)
 const CACHE_TTL = 1000 * 60 * 60;   // ১ ঘণ্টা, যাতে বট থেকে ঠিক করা উত্তরও তাড়াতাড়ি দেখায়
 
+// ভার্সিটি 'ক' এর প্রশ্নের শুরুতে বইয়ের ছাপা নম্বর আছে ("৯। ..."), কার্ডে নিজস্ব নম্বর থাকে বলে সেটা দেখানো হয় না
+const cleanQuestion = (id: string, text: string) => (id.startsWith('ka_') ? text.replace(/^\s*[0-9০-৯]{1,4}\s*[।.)]\s+/, '') : text);
+
 export async function fetchFilteredQuestions(page: number, filters: any): Promise<Question[]> {
     // কোন কোর্স (সাইটের ঠিকানা বা ক্লাসরুমে বাছাই করা), শুধু সেই প্ল্যাটফর্মের প্রশ্ন
     const platform = await currentPlatform();
@@ -85,7 +88,7 @@ export async function fetchFilteredQuestions(page: number, filters: any): Promis
             subject: String(row.subject || ''),
             chapter: String(row.chapter || ''),
             topic: String(row.topic || ''),
-            question: String(row.question || ''),
+            question: cleanQuestion(String(row.id || ''), String(row.question || '')),
             option_a: String(row.option_a || ''),
             option_b: String(row.option_b || ''),
             option_c: String(row.option_c || ''),
@@ -155,7 +158,7 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
                         subject: String(row.subject || ''),
                         chapter: String(row.chapter || ''),
                         topic: String(row.topic || ''),
-                        question: String(row.question || ''),
+                        question: cleanQuestion(String(row.id || ''), String(row.question || '')),
                         option_a: String(row.option_a || ''),
                         option_b: String(row.option_b || ''),
                         option_c: String(row.option_c || ''),

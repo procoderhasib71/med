@@ -938,39 +938,18 @@ function QBankInner({ platform }: { platform?: string }) {
                                         : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700'
                                         }`}
                                 >
-                                    {/* Top Header: choto screen e Q number → tag → tick → actions (ek line), tarpor niche pura width e question */}
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 mb-3.5 sm:flex-nowrap sm:items-start sm:justify-between sm:gap-3">
-                                        {/* choto screen e contents (children outer flex er item), boro screen e agerr moto wrapper */}
-                                        <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2.5 sm:min-w-0 sm:flex-1">
-                                            {/* Number */}
-                                            <span className="order-1 inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-black shrink-0 border border-emerald-200/60 dark:border-emerald-800/50">
-                                                {index + 1}
+                                    {/* উপরের সারি: নম্বর, ট্যাগ, টিক, ডানে রিপোর্ট/বুকমার্ক; প্রশ্ন সবসময় নিচে পুরো চওড়ায় */}
+                                    <div className="flex items-center gap-2 mb-2.5">
+                                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-black shrink-0 border border-emerald-200/60 dark:border-emerald-800/50">
+                                            {index + 1}
+                                        </span>
+                                        {questionSuffix && (
+                                            <span className="inline-flex items-center min-w-0 text-[10px] sm:text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 px-2 py-0.5 rounded-lg">
+                                                {questionSuffix}
                                             </span>
-
-                                            {/* Tag */}
-                                            {questionSuffix && (
-                                                <span className="order-2 sm:order-3 inline-flex items-center text-[10px] sm:text-xs font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 px-2 py-0.5 rounded-lg shrink-0">
-                                                    {questionSuffix}
-                                                </span>
-                                            )}
-
-                                            {/* Tick */}
-                                            {isSolved && (
-                                                <Check
-                                                    size={16}
-                                                    strokeWidth={2}
-                                                    className="order-3 sm:order-4 text-emerald-500 dark:text-emerald-400 shrink-0 self-center"
-                                                />
-                                            )}
-
-                                            {/* Question Text: choto screen e pura width (w-full), boro screen e agerr moto */}
-                                            <h3 className="order-5 sm:order-2 w-full sm:w-auto text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug">
-                                                <RenderTextOrMath text={q.question} />
-                                            </h3>
-                                        </div>
-
-                                        {/* Actions: Report & Bookmark (choto screen e prothom line er dan pashe) */}
-                                        <div className="order-4 ml-auto sm:order-none sm:ml-0 flex items-center gap-1 shrink-0 sm:pt-0.5">
+                                        )}
+                                        {isSolved && <Check size={16} strokeWidth={2} className="text-emerald-500 dark:text-emerald-400 shrink-0" />}
+                                        <div className="ml-auto flex items-center gap-1 shrink-0">
                                             <button
                                                 onClick={() => setReportingQuestion(q)}
                                                 className="p-1.5 rounded-xl text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
@@ -990,6 +969,9 @@ function QBankInner({ platform }: { platform?: string }) {
                                             </button>
                                         </div>
                                     </div>
+                                    <h3 className="mb-3.5 text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
+                                        <RenderTextOrMath text={q.question} />
+                                    </h3>
 
                                     {/* Options Grid */}
                                     <div className="space-y-2 sm:space-y-2.5">
