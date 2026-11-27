@@ -73,7 +73,7 @@ export default async function RootLayout({
 
         {/* Noto Sans Bengali সরাসরি CDN থেকে লোড */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
 

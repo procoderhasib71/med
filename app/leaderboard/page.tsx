@@ -206,7 +206,7 @@ export default function LeaderboardPage() {
                                     {renderRankBadge(item.rank!)}
 
                                     {/* User Avatar Initial */}
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${item.rank === 1
+                                    <div className={`w-10 h-10 rounded-xl hidden min-[420px]:flex items-center justify-center font-bold text-sm shrink-0 ${item.rank === 1
                                             ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200'
                                             : item.rank === 2
                                                 ? 'bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200'
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
 
             {/* Sticky Current User Rank Bar */}
             {myRankData && (
-                <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-0 left-3 right-3 md:left-0 md:right-0 rounded-2xl md:rounded-none z-30 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
+                <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] lg:bottom-0 left-3 right-3 lg:left-0 lg:right-0 rounded-2xl lg:rounded-none z-30 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
                     <div className="mx-auto max-w-2xl px-4 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">

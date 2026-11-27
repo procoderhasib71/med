@@ -240,7 +240,7 @@ export default function ModelTestPortalPage() {
                 </div>
             </header>
 
-            <main className="mx-auto max-w-2xl px-4 pt-4">
+            <main className="mx-auto max-w-5xl px-4 sm:px-6 pt-4">
                 {/* Filter Tabs */}
                 <div className="flex bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-2xl mb-5 border border-slate-300/40 dark:border-slate-700/60 shadow-xs">
                     <button
@@ -301,7 +301,7 @@ export default function ModelTestPortalPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="space-y-3.5 mb-6">
+                        <div className="grid md:grid-cols-2 gap-3.5 mb-6">
                             {currentExams.map((test) => {
                                 const isAttempted = attemptedExamIds.has(test.id);
                                 const qCount = test.total_questions || test.total_marks;
@@ -314,7 +314,7 @@ export default function ModelTestPortalPage() {
                                 return (
                                     <div
                                         key={test.id}
-                                        className="p-4 sm:p-5 rounded-[22px] bg-white dark:bg-[#1E293B] border border-[#E8EEF5] dark:border-[#334155] shadow-xs hover:border-[#059669]/50 transition-all"
+                                        className="flex flex-col p-4 sm:p-5 rounded-[22px] bg-white dark:bg-[#1E293B] border border-[#E8EEF5] dark:border-[#334155] shadow-xs hover:border-[#059669]/50 transition-all"
                                     >
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -369,7 +369,7 @@ export default function ModelTestPortalPage() {
                                                         : t('সর্বোচ্চ কমন উপযোগী প্রশ্ন ব্যাংক ভিত্তিক ফাইনাল টেস্ট', 'Final test from the most common questions')}
                                         </p>
 
-                                        <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                                        <div className="mt-auto flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
                                             <div className="flex items-center gap-1">
                                                 <HelpCircle size={14} className="text-slate-400" />
                                                 <span>{t(`${n(qCount)} টি প্রশ্ন`, `${qCount} questions`)}</span>

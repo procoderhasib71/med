@@ -4,7 +4,7 @@ import { sortSubjects } from '@/lib/subjectOrder';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import Link from 'next/link';
-import { BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, Play, PlayCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, Atom, BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, FlaskConical, Globe2, HeartHandshake, Landmark, Languages, Leaf, PawPrint, Play, PlayCircle, RefreshCw, Sigma, Sparkles } from 'lucide-react';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, session } from '@/lib/session';
 import { COURSES } from '@/lib/courses';
@@ -19,14 +19,20 @@ type Subject = { subject: string; count: number };
 type Test = { id: string; title: string; subject: string; duration: number; questions: number; negative: number };
 
 const card = 'rounded-2xl bg-white dark:bg-[#111A2E] border border-slate-200/80 dark:border-slate-800';
-// বিষয়ের কার্ডের রং পালাক্রমে
-const TONES = [
-    'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10', 'text-teal-600 dark:text-teal-400 bg-teal-500/10',
-    'text-amber-600 dark:text-amber-400 bg-amber-500/10', 'text-orange-600 dark:text-orange-400 bg-orange-500/10',
-    'text-blue-600 dark:text-blue-400 bg-blue-500/10', 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10',
-    'text-violet-600 dark:text-violet-400 bg-violet-500/10', 'text-rose-600 dark:text-rose-400 bg-rose-500/10',
-    'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10', 'text-pink-600 dark:text-pink-400 bg-pink-500/10',
+// বিষয়ের নাম দেখে নিজের আইকন আর রং, যাতে এক নজরে চেনা যায়
+const LOOKS: [RegExp, typeof BookOpen, string][] = [
+    [/উদ্ভিদ/, Leaf, 'from-emerald-400 to-green-600'],
+    [/প্রাণি/, PawPrint, 'from-teal-400 to-cyan-600'],
+    [/রসায়ন|রসায়ন/, FlaskConical, 'from-amber-400 to-orange-600'],
+    [/পদার্থ/, Atom, 'from-blue-400 to-indigo-600'],
+    [/গণিত/, Sigma, 'from-violet-400 to-purple-600'],
+    [/English|বাংলা ১ম|বাংলা ২য়|বাংলা ২য়/i, Languages, 'from-fuchsia-400 to-pink-600'],
+    [/আন্তর্জাতিক/, Globe2, 'from-sky-400 to-blue-600'],
+    [/সাধারণ জ্ঞান|বাংলাদেশ/, Landmark, 'from-rose-400 to-red-600'],
+    [/মানবিক/, HeartHandshake, 'from-pink-400 to-rose-600'],
 ];
+const lookOf = (name: string) => LOOKS.find(([re]) => re.test(name)) || [null, BookOpen, 'from-slate-400 to-slate-600'] as const;
+const LAST_KEY = 'admcq_last_subject_';
 
 function SectionTitle({ icon: Icon, title, link }: { icon: typeof BookOpen; title: string; link?: { href: string; text: string } }) {
     return (
@@ -66,47 +72,76 @@ export default function ClassroomHome() {
         return stop;
     }, []);
 
+    // শেষ যে বিষয় খুলেছিলেন (এই ডিভাইসে, কোর্স ধরে), আর দিনের সময় অনুযায়ী সম্ভাষণ
+    const [last, setLast] = useState<string | null>(null);
+    const [hour, setHour] = useState<number | null>(null);
+    useEffect(() => {
+        setHour(new Date().getHours());
+        try { setLast(localStorage.getItem(LAST_KEY + course.id)); } catch { setLast(null); }
+    }, [course.id]);
+    const remember = (subject: string) => { try { localStorage.setItem(LAST_KEY + course.id, subject); } catch { /* private mode */ } };
+    const greeting = hour === null ? t('স্বাগতম', 'Welcome')
+        : hour < 5 ? t('রাত জেগে পড়ছেন', 'Studying late')
+        : hour < 12 ? t('শুভ সকাল', 'Good morning')
+        : hour < 17 ? t('শুভ দুপুর', 'Good afternoon')
+        : hour < 20 ? t('শুভ সন্ধ্যা', 'Good evening') : t('শুভ রাত্রি', 'Good evening');
+    const total = (subjects || []).reduce((sum, s) => sum + s.count, 0);
+    const resume = subjects?.some((s) => s.subject === last) ? last : null;
+    const label = (name: string) => (name === 'English' ? t('ইংরেজি', 'English') : name);
+
     const accuracy = stats && stats.attempted ? Math.round((stats.correct * 100) / stats.attempted) : 0;
     const actions = [
-        { href: '/qbank', icon: BookOpen, title: t('MCQ প্র্যাকটিস', 'MCQ practice'), hint: t('অধ্যায় আর সাল ধরে', 'By chapter and year'), tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10', badge: 0 },
-        { href: '/model-test', icon: ClipboardList, title: t('মডেল টেস্ট', 'Model tests'), hint: t('সময় ধরে পরীক্ষা', 'Timed exams'), tone: 'text-blue-600 dark:text-blue-400 bg-blue-500/10', badge: 0 },
-        { href: '/mistakes', icon: RefreshCw, title: t('ভুল প্রশ্ন', 'Mistakes'), hint: t('আবার ঝালিয়ে নিন', 'Revise them again'), tone: 'text-orange-600 dark:text-orange-400 bg-orange-500/10', badge: stats?.mistakes || 0 },
-        { href: '/bookmarks', icon: Bookmark, title: t('বুকমার্ক', 'Bookmarks'), hint: t('দাগ দেওয়া প্রশ্ন', 'Saved questions'), tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10', badge: stats?.bookmarks || 0 },
+        { href: '/qbank', icon: BookOpen, title: t('MCQ প্র্যাকটিস', 'MCQ practice'), hint: t('অধ্যায় আর সাল ধরে', 'By chapter and year'), tone: 'from-emerald-400 to-emerald-600 shadow-emerald-500/30', badge: 0 },
+        { href: '/model-test', icon: ClipboardList, title: t('মডেল টেস্ট', 'Model tests'), hint: t('সময় ধরে পরীক্ষা', 'Timed exams'), tone: 'from-blue-400 to-indigo-600 shadow-blue-500/30', badge: 0 },
+        { href: '/mistakes', icon: RefreshCw, title: t('ভুল প্রশ্ন', 'Mistakes'), hint: t('আবার ঝালিয়ে নিন', 'Revise them again'), tone: 'from-amber-400 to-orange-600 shadow-orange-500/30', badge: stats?.mistakes || 0 },
+        { href: '/bookmarks', icon: Bookmark, title: t('বুকমার্ক', 'Bookmarks'), hint: t('দাগ দেওয়া প্রশ্ন', 'Saved questions'), tone: 'from-violet-400 to-fuchsia-600 shadow-violet-500/30', badge: stats?.bookmarks || 0 },
     ];
 
     return (
         <div className="min-h-screen bg-[#F6F8FB] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100">
             <main className="mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8 space-y-6 sm:space-y-8">
 
-                {/* স্বাগতম + নিজের হিসাব (ছোট, এক নজরে); প্র্যাকটিস আর মডেল টেস্ট নিচের কার্ডে */}
-                <section className={`${card} p-4 sm:p-5 flex flex-col md:flex-row md:items-center gap-4`}>
-                    <div className="flex items-center gap-3 min-w-0 md:flex-1">
-                        <CourseAvatar className="w-11 h-11" />
-                        <div className="min-w-0">
-                            <h1 className="text-base sm:text-lg font-black truncate">{t('স্বাগতম', 'Welcome')}{stats?.name ? `, ${stats.name}` : ''}</h1>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t(course.name, course.title)} • {t('আজকের প্রস্তুতি শুরু করুন', 'Start today’s practice')}</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-3 divide-x divide-slate-200 dark:divide-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/60 py-2 md:w-[19rem]">
-                        {[
-                            { value: bn(stats?.attempted ?? 0), label: t('মোট উত্তর', 'Answered') },
-                            { value: `${bn(accuracy)}%`, label: t('সঠিকের হার', 'Accuracy') },
-                            { value: bn(stats?.score ?? 0), label: t('স্কোর', 'Score') },
-                        ].map((x) => (
-                            <div key={x.label} className="text-center px-2">
-                                <div className="text-base font-black">{x.value}</div>
-                                <div className="text-[10.5px] text-slate-500 dark:text-slate-400">{x.label}</div>
+                {/* স্বাগতম, চালিয়ে যাওয়ার বোতাম আর নিজের হিসাব */}
+                <section className="rise relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-blue-700 text-white p-5 sm:p-7 shadow-xl shadow-emerald-900/15">
+                    <span aria-hidden className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10" />
+                    <span aria-hidden className="absolute -bottom-24 right-24 w-48 h-48 rounded-full bg-white/[0.07]" />
+                    <div className="relative flex flex-col md:flex-row md:items-center gap-5">
+                        <div className="min-w-0 md:flex-1">
+                            <div className="flex items-center gap-3">
+                                <span className="rounded-full ring-4 ring-white/25 shrink-0"><CourseAvatar className="w-12 h-12 sm:w-14 sm:h-14" /></span>
+                                <div className="min-w-0">
+                                    <h1 className="text-lg sm:text-2xl font-extrabold leading-snug">{greeting}{stats?.name ? `, ${stats.name}` : ''}</h1>
+                                    <p className="text-xs sm:text-sm text-white/80">{t(course.name, course.title)}{total ? ` • ${bn(total)} ${t('প্রশ্ন', 'questions')}` : ''}</p>
+                                </div>
                             </div>
-                        ))}
+                            <Link href={resume ? `/qbank?subject=${encodeURIComponent(resume)}` : '/qbank'}
+                                className="press mt-4 inline-flex max-w-full items-center gap-2 rounded-2xl bg-white text-emerald-700 px-4 py-2.5 text-sm font-extrabold shadow-lg">
+                                <Sparkles size={16} className="shrink-0" />
+                                <span className="truncate">{resume ? t(`চালিয়ে যান: ${label(resume)}`, `Continue: ${label(resume)}`) : t('প্র্যাকটিস শুরু করুন', 'Start practising')}</span>
+                                <ArrowRight size={16} className="shrink-0" />
+                            </Link>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 md:w-[21rem]">
+                            {[
+                                { value: bn(stats?.attempted ?? 0), label: t('মোট উত্তর', 'Answered') },
+                                { value: `${bn(accuracy)}%`, label: t('সঠিকের হার', 'Accuracy') },
+                                { value: bn(stats?.score ?? 0), label: t('স্কোর', 'Score') },
+                            ].map((x) => (
+                                <div key={x.label} className="min-w-0 rounded-2xl bg-white/15 border border-white/15 backdrop-blur text-center px-1 py-2.5">
+                                    <div className="text-lg sm:text-xl font-extrabold truncate">{x.value}</div>
+                                    <div className="text-[10.5px] text-white/80">{x.label}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </section>
 
                 {/* দ্রুত কাজ */}
-                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <section className="rise [animation-delay:60ms] grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     {actions.map((a) => (
-                        <Link key={a.href} href={a.href} className={`${card} group relative p-4 sm:p-5 flex flex-col gap-3 hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all`}>
+                        <Link key={a.href} href={a.href} className={`${card} group relative p-4 flex flex-col gap-3 shadow-sm hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-[0.97]`}>
                             {a.badge > 0 && <span className="absolute top-3 right-3 min-w-[22px] h-[22px] px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-black flex items-center justify-center">{bn(a.badge)}</span>}
-                            <span className={`w-11 h-11 rounded-xl flex items-center justify-center ${a.tone}`}><a.icon size={21} /></span>
+                            <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg transition-transform group-hover:scale-110 ${a.tone}`}><a.icon size={21} /></span>
                             <span>
                                 <span className="block font-black text-sm sm:text-base">{a.title}</span>
                                 <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{a.hint}</span>
@@ -115,7 +150,7 @@ export default function ClassroomHome() {
                     ))}
                 </section>
 
-                <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="rise [animation-delay:120ms] grid lg:grid-cols-3 gap-6 sm:gap-8">
                     {/* বিষয়ভিত্তিক প্রস্তুতি (চালু কোর্সের, DB থেকে) */}
                     <section className="lg:col-span-2">
                         <SectionTitle icon={BookOpen} title={t('বিষয়ভিত্তিক প্রস্তুতি', 'Practice by subject')} link={{ href: '/qbank', text: t('সব প্রশ্ন', 'All questions') }} />
@@ -131,17 +166,20 @@ export default function ClassroomHome() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {sortSubjects(subjects, course.id, (s) => s.subject).map((s, i) => (
-                                    <Link key={s.subject} href={`/qbank?subject=${encodeURIComponent(s.subject)}`}
-                                        className={`${card} group flex items-center gap-3 p-3 sm:p-3.5 hover:border-emerald-500/50 hover:shadow-md transition-all`}>
-                                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${TONES[i % TONES.length]}`}><BookOpen size={18} /></span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block text-[13px] sm:text-sm font-extrabold leading-tight">{s.subject === 'English' ? t('ইংরেজি', 'English') : s.subject}</span>
-                                            <span className="block text-[11px] text-slate-500 dark:text-slate-400">{bn(s.count)} {t('প্রশ্ন', 'questions')}</span>
-                                        </span>
-                                        <ChevronRight size={15} className="text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 shrink-0 hidden sm:block" />
-                                    </Link>
-                                ))}
+                                {sortSubjects(subjects, course.id, (s) => s.subject).map((s) => {
+                                    const [, Icon, tone] = lookOf(s.subject);
+                                    return (
+                                        <Link key={s.subject} href={`/qbank?subject=${encodeURIComponent(s.subject)}`} onClick={() => remember(s.subject)}
+                                            className={`${card} group flex flex-col min-[360px]:flex-row min-[360px]:items-center gap-2.5 min-[360px]:gap-3 p-3 sm:p-3.5 shadow-sm hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-[0.97]`}>
+                                            <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white bg-gradient-to-br shadow-md transition-transform group-hover:scale-110 ${tone}`}><Icon size={19} /></span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-[13px] sm:text-sm font-extrabold leading-tight">{label(s.subject)}</span>
+                                                <span className="block text-[11px] text-slate-500 dark:text-slate-400">{bn(s.count)} {t('প্রশ্ন', 'questions')}</span>
+                                            </span>
+                                            <ChevronRight size={15} className="text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 shrink-0 hidden sm:block" />
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         )}
                     </section>

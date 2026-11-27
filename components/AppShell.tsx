@@ -15,7 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
         <>
             <AppHeader />
-            <div className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+            <div className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
             <BottomNav path={path} />
         </>
     );
@@ -26,7 +26,7 @@ function BottomNav({ path }: { path: string }) {
     const { t } = useLang();
     const idx = NAV.findIndex((n) => (n.href === '/' ? path === '/' : path.startsWith(n.href)));
     return (
-        <nav data-bottom-nav className="md:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-40 bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-white/[0.07] rounded-[22px] shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] dark:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.7)]">
+        <nav data-bottom-nav className="lg:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] z-40 bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-white/[0.07] rounded-[22px] shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] dark:shadow-[0_12px_32px_-12px_rgba(0,0,0,0.7)]">
             <div className="relative grid grid-cols-5 p-1.5">
                 {idx >= 0 && (
                     <span aria-hidden className="absolute top-1.5 bottom-1.5 left-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"

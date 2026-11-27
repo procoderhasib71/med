@@ -36,12 +36,12 @@ export default function CourseSwitcher() {
             <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate">{t(course.name, course.title)}</span>
         </>
     );
-    if (!canSwitch) return <div className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 max-w-[12rem]">{pill}</div>;
+    if (!canSwitch) return <div className="min-w-0 flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 max-w-[12rem]">{pill}</div>;
 
     return (
         <div ref={box} className="relative min-w-0">
             <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t('কোর্স বদলান', 'Switch course')}
-                className={`flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl border transition-colors cursor-pointer max-w-[13rem] ${open ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 bg-white dark:bg-slate-900/60'}`}>
+                className={`flex w-full items-center gap-2 pl-1 pr-2 py-1 rounded-xl border transition-colors cursor-pointer max-w-[13rem] ${open ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 bg-white dark:bg-slate-900/60'}`}>
                 {pill}
                 <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>

@@ -25,7 +25,7 @@ export default function AppHeader() {
     return (
         // Home screen থেকে খুললে অ্যাপ স্ট্যাটাস বারের নিচ পর্যন্ত যায় (black-translucent), তাই উপরে নচের জায়গা রাখা
         <header style={{ paddingTop: 'env(safe-area-inset-top)' }} className="sticky top-0 z-40 w-full border-b border-slate-200/60 dark:border-white/[0.06] bg-slate-50/85 dark:bg-[#0B1120]/85 backdrop-blur-xl">
-            <div className="mx-auto max-w-6xl px-4 sm:px-6 h-[60px] flex items-center justify-between gap-3">
+            <div className="mx-auto max-w-6xl px-3 min-[360px]:px-4 sm:px-6 h-[60px] flex items-center justify-between gap-2 sm:gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Link href="/" aria-label={t('AdMCQ হোম', 'AdMCQ home')} className="flex items-center gap-1.5 shrink-0">
                         <span className="w-8 h-8 rounded-[10px] bg-gradient-to-tr from-emerald-500 to-blue-500 flex items-center justify-center font-black text-black text-[17px] shadow-md shadow-emerald-500/20">A</span>
@@ -35,7 +35,7 @@ export default function AppHeader() {
                     <CourseSwitcher />
                 </div>
 
-                <nav className="hidden md:flex items-center gap-1" aria-label={t('প্রধান মেনু', 'Main menu')}>
+                <nav className="hidden lg:flex items-center gap-1" aria-label={t('প্রধান মেনু', 'Main menu')}>
                     {NAV.map((n) => {
                         const active = n.href === '/' ? path === '/' : path.startsWith(n.href);
                         return (

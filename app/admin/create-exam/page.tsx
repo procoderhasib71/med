@@ -1,6 +1,7 @@
 'use client';
 
 import { sortChapters, sortSubjects, sortTopics } from '@/lib/subjectOrder';
+import { useKeepOnScreen } from '@/lib/useKeepOnScreen';
 import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import BrandLoader from '@/components/BrandLoader';
 import {
@@ -74,6 +75,7 @@ interface CustomDropdownProps {
 function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const menuRef = useKeepOnScreen(isOpen);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -94,7 +96,7 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
             </div>
 
             {isOpen && (
-                <div className="absolute z-[100] min-w-full w-max max-w-[85vw] sm:max-w-xs mt-1 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1 backdrop-blur-md">
+                <div ref={menuRef} className="absolute z-[100] min-w-full w-max max-w-[85vw] sm:max-w-xs mt-1 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-h-52 overflow-y-auto p-1 backdrop-blur-md">
                     <div
                         className="px-2.5 py-1.5 text-[11px] sm:text-xs cursor-pointer rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold truncate mb-0.5"
                         onClick={() => { onChange(''); setIsOpen(false); }}

@@ -74,3 +74,7 @@ textarea {
 /* iOS: ট্যাপের ধূসর ঝলক নয়, পাতা টানলে পুরো অ্যাপ লাফায় না */
 html { -webkit-tap-highlight-color: transparent; }
 body { overscroll-behavior-y: none; }
+
+/* পেজের অংশগুলো একটার পর একটা নরমভাবে ভেসে ওঠে */
+@utility rise { animation: popin 380ms cubic-bezier(.2,.8,.2,1) backwards; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
