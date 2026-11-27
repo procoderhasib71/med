@@ -15,7 +15,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
         <>
             <AppHeader />
-            <div className="pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
+            {/* পাতা বদলালে নতুন পাতা নরমভাবে ভেসে ওঠে (key বদলালে অ্যানিমেশন আবার চলে) */}
+            <div key={path} className="page-in pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
             <BottomNav path={path} />
         </>
     );

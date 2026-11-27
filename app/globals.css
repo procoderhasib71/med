@@ -78,3 +78,11 @@ body { overscroll-behavior-y: none; }
 /* পেজের অংশগুলো একটার পর একটা নরমভাবে ভেসে ওঠে */
 @utility rise { animation: popin 380ms cubic-bezier(.2,.8,.2,1) backwards; }
 @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+
+/* পাতা বদলানোর transition: হালকা fade আর একটু নিচ থেকে উঠে আসা */
+@keyframes pagein {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@utility page-in { animation: pagein 280ms cubic-bezier(.2,.8,.2,1) backwards; }
+@media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
