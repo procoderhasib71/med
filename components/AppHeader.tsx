@@ -23,7 +23,8 @@ export default function AppHeader() {
     const { isDarkMode, toggleTheme, mounted } = useTheme();
     const { t } = useLang();
     return (
-        <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#0B1120]/85 backdrop-blur-md">
+        // Home screen থেকে খুললে অ্যাপ স্ট্যাটাস বারের নিচ পর্যন্ত যায় (black-translucent), তাই উপরে নচের জায়গা রাখা
+        <header style={{ paddingTop: 'env(safe-area-inset-top)' }} className="sticky top-0 z-40 w-full border-b border-slate-200/60 dark:border-white/[0.06] bg-slate-50/85 dark:bg-[#0B1120]/85 backdrop-blur-xl">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 h-[60px] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Link href="/" aria-label={t('AdMCQ হোম', 'AdMCQ home')} className="flex items-center gap-1.5 shrink-0">
@@ -48,7 +49,7 @@ export default function AppHeader() {
 
                 <div className="flex items-center gap-1.5 shrink-0">
                     <button onClick={toggleTheme} aria-label={isDarkMode ? t('লাইট মোড', 'Light mode') : t('ডার্ক মোড', 'Dark mode')}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-200/60 dark:bg-[#1e293b] text-slate-600 dark:text-slate-300 hover:bg-slate-300/60 dark:hover:bg-[#2a3850] transition-colors cursor-pointer press">
                         {!mounted ? <span className="w-[18px] h-[18px]" /> : isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
                     </button>
                     <ProfileMenu />

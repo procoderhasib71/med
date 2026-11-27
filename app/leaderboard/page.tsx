@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
 
             {/* Sticky Current User Rank Bar */}
             {myRankData && (
-                <div className="fixed bottom-[60px] md:bottom-0 left-0 right-0 z-30 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
+                <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-0 left-3 right-3 md:left-0 md:right-0 rounded-2xl md:rounded-none z-30 bg-slate-900/95 dark:bg-[#070B14]/95 backdrop-blur-md border-t border-slate-800 p-3 sm:py-3.5 shadow-2xl">
                     <div className="mx-auto max-w-2xl px-4 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0">

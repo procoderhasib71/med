@@ -1066,7 +1066,7 @@ function QBankInner({ platform }: { platform?: string }) {
             </main>
 
             {toast && (
-                <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs sm:text-sm font-semibold shadow-2xl max-w-[90vw] text-center">
+                <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:bottom-5 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs sm:text-sm font-semibold shadow-2xl max-w-[90vw] text-center">
                     {toast}
                 </div>
             )}

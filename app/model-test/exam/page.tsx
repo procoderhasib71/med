@@ -349,7 +349,7 @@ function ExamRunner() {
             )}
 
             {/* Top Bar */}
-            <header className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md">
+            <header style={{ paddingTop: 'env(safe-area-inset-top)' }} className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md">
                 <div className="mx-auto max-w-3xl px-4 h-14 flex items-center justify-between">
                     <button
                         onClick={() => router.back()}
