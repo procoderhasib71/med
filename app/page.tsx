@@ -10,6 +10,7 @@ import { onAuthStateChanged, session } from '@/lib/session';
 import { COURSES } from '@/lib/courses';
 import { useCourse } from '@/components/CourseProvider';
 import CourseAvatar from '@/components/CourseAvatar';
+import subjectCounts from '@/app/constants/subjectCounts.json';
 
 // ক্লাসরুমের হোম: স্বাগতম আর নিজের হিসাব, দ্রুত কাজ, চালু কোর্সের বিষয় (DB থেকে), সাম্প্রতিক মডেল টেস্ট।
 // মোবাইলে সব এক কলামে; কম্পিউটারে চওড়া, দুই কলামে।
@@ -52,7 +53,9 @@ export default function ClassroomHome() {
     const bn = n;
     const course = COURSES.find((c) => c.id === (info?.current || 'med'))!;
     const [stats, setStats] = useState<Stats | null>(null);
-    const [subjects, setSubjects] = useState<Subject[] | null>(null);
+    // বিষয় আর প্রশ্নসংখ্যা: app/constants/subjectCounts.json থেকে (Turso তে read নেই)। প্রশ্ন বদলালে node scripts/subject-counts.mjs
+    const counts = (subjectCounts as Record<string, Record<string, number>>)[course.id] || {};
+    const subjects: Subject[] = Object.entries(counts).map(([subject, count]) => ({ subject, count }));
     const [tests, setTests] = useState<Test[] | null>(null);
 
     useEffect(() => {
@@ -62,7 +65,6 @@ export default function ClassroomHome() {
             if (me) setStats({ name: me.name || me.displayName || '', attempted: me.totalAttempted || 0, correct: me.totalCorrect || 0,
                                score: Number((me.totalScore || 0).toFixed(2)), mistakes: me.mistakeCount || 0, bookmarks: me.bookmarks.length });
         });
-        fetch('/api/subjects', { cache: 'no-store' }).then((r) => r.json()).then((d) => setSubjects(d.subjects || [])).catch(() => setSubjects([]));
         listModelTests(4).then((list) => setTests(list.map((mt) => {
             const qs = Array.isArray(mt.questions) ? mt.questions.length : 0;
             return { id: String(mt.id), title: mt.title || 'মডেল টেস্ট', subject: mt.subject || 'সমন্বিত', duration: Number(mt.duration_minutes) || 25,
@@ -84,8 +86,8 @@ export default function ClassroomHome() {
         : hour < 12 ? t('শুভ সকাল', 'Good morning')
         : hour < 17 ? t('শুভ দুপুর', 'Good afternoon')
         : hour < 20 ? t('শুভ সন্ধ্যা', 'Good evening') : t('শুভ রাত্রি', 'Good evening');
-    const total = (subjects || []).reduce((sum, s) => sum + s.count, 0);
-    const resume = subjects?.some((s) => s.subject === last) ? last : null;
+    const total = subjects.reduce((sum, s) => sum + s.count, 0);
+    const resume = subjects.some((s) => s.subject === last) ? last : null;
     const label = (name: string) => (name === 'English' ? t('ইংরেজি', 'English') : name);
 
     const accuracy = stats && stats.attempted ? Math.round((stats.correct * 100) / stats.attempted) : 0;
@@ -150,14 +152,10 @@ export default function ClassroomHome() {
                 </section>
 
                 <div className="rise [animation-delay:120ms] space-y-6 sm:space-y-8">
-                    {/* বিষয়ভিত্তিক প্রস্তুতি (চালু কোর্সের, DB থেকে) */}
+                    {/* বিষয়ভিত্তিক প্রস্তুতি (চালু কোর্সের, constants ফাইল থেকে) */}
                     <section>
                         <SectionTitle icon={BookOpen} title={t('বিষয়ভিত্তিক প্রস্তুতি', 'Practice by subject')} link={{ href: '/qbank', text: t('সব প্রশ্ন', 'All questions') }} />
-                        {subjects === null ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`${card} h-[74px] animate-pulse`} />)}
-                            </div>
-                        ) : subjects.length === 0 ? (
+                        {subjects.length === 0 ? (
                             <div className={`${card} p-8 text-center`}>
                                 <div className="text-3xl">⏳</div>
                                 <p className="mt-2 font-bold">{t(`${course.name} এর প্রশ্ন শীঘ্রই আসছে`, `${course.title} questions are coming soon`)}</p>
