@@ -1,5 +1,6 @@
 'use client';
 
+import { sortChapters, sortSubjects, sortTopics } from '@/lib/subjectOrder';
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import BrandLoader from '@/components/BrandLoader';
 import {
@@ -659,12 +660,12 @@ function QBankInner({ platform }: { platform?: string }) {
         }
     };
 
-    const availableSubjects = Object.keys(syllabus || {});
+    const availableSubjects = sortSubjects(Object.keys(syllabus || {}), platform);
     const availableChapters = filters.subject && syllabus[filters.subject]
-        ? Object.keys(syllabus[filters.subject])
+        ? sortChapters(Object.keys(syllabus[filters.subject]))
         : [];
     const availableTopics = filters.subject && filters.chapter && syllabus[filters.subject]?.[filters.chapter]
-        ? syllabus[filters.subject][filters.chapter].topics || []
+        ? sortTopics(syllabus[filters.subject][filters.chapter].topics || [])
         : [];
     const availableSources = filters.subject && filters.chapter && syllabus[filters.subject]?.[filters.chapter]
         ? syllabus[filters.subject][filters.chapter].sources || []

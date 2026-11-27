@@ -1,5 +1,6 @@
 'use client';
 
+import { sortSubjects } from '@/lib/subjectOrder';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import Link from 'next/link';
@@ -130,12 +131,12 @@ export default function ClassroomHome() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {subjects.map((s, i) => (
+                                {sortSubjects(subjects, course.id, (s) => s.subject).map((s, i) => (
                                     <Link key={s.subject} href={`/qbank?subject=${encodeURIComponent(s.subject)}`}
                                         className={`${card} group flex items-center gap-3 p-3 sm:p-3.5 hover:border-emerald-500/50 hover:shadow-md transition-all`}>
                                         <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${TONES[i % TONES.length]}`}><BookOpen size={18} /></span>
                                         <span className="min-w-0 flex-1">
-                                            <span className="block text-[13px] sm:text-sm font-extrabold truncate">{s.subject === 'English' ? t('ইংরেজি', 'English') : s.subject}</span>
+                                            <span className="block text-[13px] sm:text-sm font-extrabold leading-tight">{s.subject === 'English' ? t('ইংরেজি', 'English') : s.subject}</span>
                                             <span className="block text-[11px] text-slate-500 dark:text-slate-400">{bn(s.count)} {t('প্রশ্ন', 'questions')}</span>
                                         </span>
                                         <ChevronRight size={15} className="text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 shrink-0 hidden sm:block" />

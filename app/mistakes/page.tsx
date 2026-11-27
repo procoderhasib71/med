@@ -1,5 +1,7 @@
 'use client';
 
+import { sortSubjects } from '@/lib/subjectOrder';
+import { useCourse } from '@/components/CourseProvider';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLang } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
@@ -36,6 +38,7 @@ interface MistakeItem {
 const PAGE_SIZE = 10;
 
 export default function MistakesPage() {
+  const platform = useCourse().info?.current;
     const { t, n, lang } = useLang();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -180,7 +183,7 @@ export default function MistakesPage() {
     }
   };
 
-  const subjects = ['all', ...Array.from(new Set(allMistakes.map(m => m.subject).filter(Boolean)))];
+  const subjects = ['all', ...sortSubjects(Array.from(new Set(allMistakes.map(m => m.subject).filter(Boolean))), platform)];
   const filteredMistakes = activeTab === 'all'
     ? allMistakes
     : allMistakes.filter(m => m.subject === activeTab);

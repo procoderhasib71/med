@@ -1,5 +1,7 @@
 'use client';
 
+import { sortChapters, sortSubjects } from '@/lib/subjectOrder';
+import { useCourse } from '@/components/CourseProvider';
 import { useState, useEffect } from 'react';
 import { useLang } from '@/lib/i18n';
 import CourseTag from '@/components/CourseTag';
@@ -40,6 +42,7 @@ interface SubjectStat {
 }
 
 export default function AnalysisPage() {
+  const platform = useCourse().info?.current;
     const { t, n, lang } = useLang();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -329,14 +332,14 @@ export default function AnalysisPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {subjectProgressList.map((sub) => {
+                  {sortSubjects(subjectProgressList, platform, (s) => s.name).map((sub) => {
                     const subAcc = sub.totalAttempted > 0 ? Math.round((sub.correctAnswers / sub.totalAttempted) * 100) : 0;
                     const isExpanded = expandedSubject === sub.subjectId;
                     const theme = getAccuracyTheme(subAcc);
 
-                    const matchingChapters = chapterProgressList.filter(
+                    const matchingChapters = sortChapters(chapterProgressList.filter(
                       c => c.subject.trim() === sub.name.trim()
-                    );
+                    ), (c) => c.chapter);
 
                     return (
                       <div
