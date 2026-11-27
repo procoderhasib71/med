@@ -4,7 +4,7 @@ import { sortSubjects } from '@/lib/subjectOrder';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import Link from 'next/link';
-import { ArrowRight, Atom, BookOpen, Bookmark, ChevronDown, ChevronRight, ClipboardList, FileText, FlaskConical, Globe2, HeartHandshake, Landmark, Languages, Leaf, PawPrint, Play, PlayCircle, RefreshCw, Sigma, Sparkles } from 'lucide-react';
+import { ArrowRight, Atom, BookOpen, Bookmark, ChevronRight, ClipboardList, FileText, FlaskConical, Globe2, HeartHandshake, Landmark, Languages, Leaf, PawPrint, Play, PlayCircle, RefreshCw, Sigma, Sparkles } from 'lucide-react';
 import { getMe, listModelTests } from '@/lib/siteApi';
 import { onAuthStateChanged, session } from '@/lib/session';
 import { COURSES } from '@/lib/courses';
@@ -54,7 +54,6 @@ export default function ClassroomHome() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [subjects, setSubjects] = useState<Subject[] | null>(null);
     const [tests, setTests] = useState<Test[] | null>(null);
-    const [testsOpen, setTestsOpen] = useState(false);
 
     useEffect(() => {
         const stop = onAuthStateChanged(session, async (user) => {
@@ -150,12 +149,12 @@ export default function ClassroomHome() {
                     ))}
                 </section>
 
-                <div className="rise [animation-delay:120ms] grid lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="rise [animation-delay:120ms] space-y-6 sm:space-y-8">
                     {/* বিষয়ভিত্তিক প্রস্তুতি (চালু কোর্সের, DB থেকে) */}
-                    <section className="lg:col-span-2">
+                    <section>
                         <SectionTitle icon={BookOpen} title={t('বিষয়ভিত্তিক প্রস্তুতি', 'Practice by subject')} link={{ href: '/qbank', text: t('সব প্রশ্ন', 'All questions') }} />
                         {subjects === null ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {Array.from({ length: 6 }).map((_, i) => <div key={i} className={`${card} h-[74px] animate-pulse`} />)}
                             </div>
                         ) : subjects.length === 0 ? (
@@ -165,7 +164,7 @@ export default function ClassroomHome() {
                                 <p className="text-sm text-slate-500 mt-1">{t('প্রশ্ন যোগ হলেই এখানে বিষয়গুলো দেখাবে।', 'Subjects will appear here once questions are added.')}</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {sortSubjects(subjects, course.id, (s) => s.subject).map((s) => {
                                     const [, Icon, tone] = lookOf(s.subject);
                                     return (
@@ -185,61 +184,45 @@ export default function ClassroomHome() {
                     </section>
 
                     {/* সাম্প্রতিক মডেল টেস্ট + শীঘ্রই আসছে */}
-                    <aside className="space-y-6">
-                        {/* মডেল টেস্ট: বোতামের মতো, চাপলে তালিকা খোলে/বন্ধ হয় */}
-                        <section className={`${card} overflow-hidden`}>
-                            <button onClick={() => setTestsOpen((o) => !o)} aria-expanded={testsOpen}
-                                className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer">
-                                <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0"><ClipboardList size={19} /></span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block font-black">{t('মডেল টেস্ট', 'Model tests')}</span>
-                                    <span className="block text-xs text-slate-500 dark:text-slate-400">
-                                        {tests === null ? t('লোড হচ্ছে...', 'Loading...') : tests.length ? t(`${bn(tests.length)}টা সাম্প্রতিক টেস্ট`, `${bn(tests.length)} recent tests`) : t('এখনো কোনো টেস্ট নেই', 'No tests yet')}
-                                    </span>
-                                </span>
-                                <ChevronDown size={18} className={`text-slate-400 shrink-0 transition-transform duration-200 ${testsOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                            {testsOpen && (
-                            <div className="space-y-3 px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3 animate-[popin_.15s_ease-out]">
-                                {tests === null ? (
-                                    Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-xl bg-slate-100 dark:bg-slate-800 h-[76px] animate-pulse" />)
-                                ) : tests.length === 0 ? (
-                                    <div className="p-4 text-center text-sm text-slate-500">{t('এখনো কোনো মডেল টেস্ট নেই।', 'No model tests yet.')}</div>
-                                ) : tests.map((test) => (
-                                    <div key={test.id} className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 flex items-center gap-3">
-                                        <div className="min-w-0 flex-1">
-                                            <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">{test.subject}</span>
-                                            <h3 className="mt-1.5 text-sm font-extrabold truncate">{test.title}</h3>
-                                            <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{bn(test.questions)} {t('প্রশ্ন', 'Qs')} • {bn(test.duration)} {t('মিনিট', 'min')} • <span className="text-rose-500 font-bold">-{bn(test.negative)}</span></p>
-                                        </div>
-                                        <Link href={`/model-test/exam?testId=${encodeURIComponent(test.id)}&title=${encodeURIComponent(test.title)}&duration=${test.duration}`}
-                                            className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
-                                            <Play size={12} fill="currentColor" /> {t('শুরু', 'Start')}
-                                        </Link>
-                                    </div>
-                                ))}
-                                <Link href="/model-test" className="flex items-center justify-center gap-1 pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                    {t('সব মডেল টেস্ট দেখুন', 'See all model tests')} <ChevronRight size={14} />
-                                </Link>
+                    {/* সাম্প্রতিক মডেল টেস্ট: সব স্ক্রিনে সরাসরি কার্ড, কম্পিউটারে এক সারিতে */}
+                    <section>
+                        <SectionTitle icon={ClipboardList} title={t('সাম্প্রতিক মডেল টেস্ট', 'Recent model tests')} link={{ href: '/model-test', text: t('সব টেস্ট', 'All tests') }} />
+                        {tests === null ? (
+                            <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible">
+                                {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`${card} h-[132px] shrink-0 w-[78%] sm:w-auto animate-pulse`} />)}
                             </div>
-                            )}
-                        </section>
+                        ) : tests.length === 0 ? (
+                            <div className={`${card} p-6 text-center text-sm text-slate-500`}>{t('এখনো কোনো মডেল টেস্ট নেই।', 'No model tests yet.')}</div>
+                        ) : (
+                            <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible">
+                                {tests.map((test) => (
+                                    <Link key={test.id} href={`/model-test/exam?testId=${encodeURIComponent(test.id)}&title=${encodeURIComponent(test.title)}&duration=${test.duration}`}
+                                        className={`${card} group shrink-0 w-[78%] sm:w-auto snap-start flex flex-col p-4 shadow-sm hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-[0.97]`}>
+                                        <span className="self-start max-w-full truncate text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400">{test.subject}</span>
+                                        <h3 className="mt-2 text-sm font-extrabold truncate">{test.title}</h3>
+                                        <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{bn(test.questions)} {t('প্রশ্ন', 'Qs')} • {bn(test.duration)} {t('মিনিট', 'min')} • <span className="text-rose-500 font-bold">-{bn(test.negative)}</span></p>
+                                        <span className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
+                                            {t('পরীক্ষা দিন', 'Start test')}
+                                            <span className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center transition-transform group-hover:translate-x-0.5"><Play size={11} fill="currentColor" /></span>
+                                        </span>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </section>
 
-                        <section className={`${card} p-5`}>
-                            <h3 className="font-black text-sm mb-3">{t('শীঘ্রই আসছে', 'Coming soon')}</h3>
-                            <div className="space-y-3">
-                                {[
-                                    { icon: FileText, title: t('লেকচার শিট ও PDF নোট', 'Lecture sheets & PDF notes'), tone: 'text-rose-600 dark:text-rose-400 bg-rose-500/10' },
-                                    { icon: PlayCircle, title: t('ভিডিও ক্লাস', 'Video classes'), tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
-                                ].map((x) => (
-                                    <div key={x.title} className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                                        <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${x.tone}`}><x.icon size={17} /></span>
-                                        {x.title}
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    </aside>
+                    {/* শীঘ্রই আসছে: ছোট একটা লাইন */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-bold">{t('শীঘ্রই আসছে:', 'Coming soon:')}</span>
+                        {[
+                            { icon: FileText, title: t('লেকচার শিট ও PDF নোট', 'Lecture sheets & PDF notes') },
+                            { icon: PlayCircle, title: t('ভিডিও ক্লাস', 'Video classes') },
+                        ].map((x) => (
+                            <span key={x.title} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-dashed border-slate-300 dark:border-slate-700">
+                                <x.icon size={13} /> {x.title}
+                            </span>
+                        ))}
+                    </div>
                 </div>
             </main>
         </div>
