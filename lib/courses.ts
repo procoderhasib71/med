@@ -38,12 +38,12 @@ export const COURSES = [
     },
     {
         id: 'ssc',
-        title: 'SSC Physics',
-        name: 'SSC পদার্থবিজ্ঞান',
+        title: 'SSC',
+        name: 'SSC',
         url: 'https://app.admcq.com',
         stats: '3,618 MCQ',
         accent: 'violet',
-        includes: ['SSC পদার্থবিজ্ঞানের MCQ', 'অধ্যায়ভিত্তিক প্র্যাকটিস', 'ভুল প্রশ্নের তালিকা ও বুকমার্ক'],
+        includes: ['পদার্থবিজ্ঞানের MCQ', 'অধ্যায়ভিত্তিক প্র্যাকটিস', 'ভুল প্রশ্নের তালিকা ও বুকমার্ক'],
     },
 ] as const;
 

@@ -6,7 +6,7 @@ export const PLATFORMS = {
     ka: { name: "ভার্সিটি 'ক' ইউনিট", short: "Varsity 'Ka'", title: "AdMCQ Varsity 'Ka'" },
     kha: { name: "ভার্সিটি 'খ' ইউনিট", short: "Varsity 'Kha'", title: "AdMCQ Varsity 'Kha'" },
     eng: { name: 'ইঞ্জিনিয়ারিং', short: 'Engineering', title: 'AdMCQ Engineering' },
-    ssc: { name: 'SSC পদার্থবিজ্ঞান', short: 'SSC Physics', title: 'AdMCQ SSC Physics' },
+    ssc: { name: 'SSC', short: 'SSC', title: 'AdMCQ SSC' },
 } as const;
 export type Platform = keyof typeof PLATFORMS;
 

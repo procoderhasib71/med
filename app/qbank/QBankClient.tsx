@@ -28,7 +28,6 @@ import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 import syllabusData from '@/app/constants/syllabusData.json';
 import syllabusKa from '@/app/constants/syllabusKa.json';
 import syllabusKha from '@/app/constants/syllabusKha.json';
-import syllabusSsc from '@/app/constants/syllabusSsc.json';
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                          */
@@ -54,7 +53,13 @@ const INFLIGHT_STALE_MS = 30 * 1000;
 
 type Syllabus = Record<string, Record<string, { topics: string[]; sources: string[] }>>;
 // ভার্সিটি 'ক' এর অধ্যায়/টপিক আলাদা (ka_questions থেকে বানানো)
-const syllabusFor = (platform?: string) => (platform === 'ka' ? syllabusKa : platform === 'kha' ? syllabusKha : platform === 'ssc' ? syllabusSsc : syllabusData) as unknown as Syllabus;
+const syllabusFor = (platform?: string): Syllabus => {
+    if (platform === 'ka') return syllabusKa as unknown as Syllabus;
+    if (platform === 'kha') return syllabusKha as unknown as Syllabus;
+    const common = syllabusData as unknown as Syllabus;
+    if (platform === 'ssc') return { 'পদার্থবিজ্ঞান': common['পদার্থবিজ্ঞান'] };
+    return Object.fromEntries(Object.entries(common).filter(([subject]) => subject !== 'পদার্থবিজ্ঞান')) as Syllabus;
+};
 
 const emptyFilters = {
     subject: '',
