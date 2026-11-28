@@ -40,9 +40,20 @@ export async function fixAnswer(questionId: string, option: string, by: string, 
 
 export async function listExplanationDrafts(limit = 30) {
     const r = await turso.execute({
-        sql: `SELECT e.question_id, e.text, e.created_at, q.subject, q.chapter, q.question,
-                     q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
-              FROM hermes_mcq_explanations e JOIN questions q ON q.id = e.question_id
+        sql: `SELECT e.question_id, e.text, e.created_at,
+                     COALESCE(q.subject, k.subject, h.subject, s.subject) AS subject,
+                     COALESCE(q.chapter, k.chapter, h.chapter, s.chapter) AS chapter,
+                     COALESCE(q.question, k.question, h.question, s.question) AS question,
+                     COALESCE(q.option_a, k.option_a, h.option_a, s.option_a) AS option_a,
+                     COALESCE(q.option_b, k.option_b, h.option_b, s.option_b) AS option_b,
+                     COALESCE(q.option_c, k.option_c, h.option_c, s.option_c) AS option_c,
+                     COALESCE(q.option_d, k.option_d, h.option_d, s.option_d) AS option_d,
+                     COALESCE(q.correct_option, k.correct_option, h.correct_option, s.correct_option) AS correct_option
+              FROM hermes_mcq_explanations e
+              LEFT JOIN questions q ON q.id = e.question_id
+              LEFT JOIN ka_questions k ON k.id = e.question_id
+              LEFT JOIN kha_questions h ON h.id = e.question_id
+              LEFT JOIN ssc_questions s ON s.id = e.question_id
               WHERE e.status = 'pending' ORDER BY e.created_at LIMIT ?`,
         args: [limit],
     });

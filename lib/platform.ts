@@ -1,4 +1,4 @@
-// এক কোড, চার সাইট: med.admcq.com, ka.admcq.com, kha.admcq.com, eng.admcq.com।
+// কোর্সগুলো app.admcq.com এ বাছাই হয়; পুরনো নিজস্ব subdomain-ও সমর্থিত।
 // ঠিকানা দেখে প্ল্যাটফর্ম ঠিক হয়; অন্য ঠিকানায় (localhost, *.hosted.app) PLATFORM env বা med।
 
 export const PLATFORMS = {
@@ -6,6 +6,7 @@ export const PLATFORMS = {
     ka: { name: "ভার্সিটি 'ক' ইউনিট", short: "Varsity 'Ka'", title: "AdMCQ Varsity 'Ka'" },
     kha: { name: "ভার্সিটি 'খ' ইউনিট", short: "Varsity 'Kha'", title: "AdMCQ Varsity 'Kha'" },
     eng: { name: 'ইঞ্জিনিয়ারিং', short: 'Engineering', title: 'AdMCQ Engineering' },
+    ssc: { name: 'SSC পদার্থবিজ্ঞান', short: 'SSC Physics', title: 'AdMCQ SSC Physics' },
 } as const;
 export type Platform = keyof typeof PLATFORMS;
 

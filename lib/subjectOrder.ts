@@ -11,6 +11,7 @@ export const SUBJECT_ORDER: Record<string, string[]> = {
     ka: [...PHY, ...CHE, ...MATH, BIO1, BIO2],
     kha: [...BANGLA, 'English', 'বাংলাদেশ বিষয়াবলি', 'আন্তর্জাতিক বিষয়াবলি'],
     eng: [...PHY, ...CHE, ...MATH, 'English'],
+    ssc: ['পদার্থবিজ্ঞান'],
 };
 
 /** বিষয় সাজানো। তালিকায় নেই এমন বিষয় শেষে, আগের ক্রমে। */

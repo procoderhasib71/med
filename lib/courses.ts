@@ -1,4 +1,4 @@
-// চারটা কোর্স: প্রোফাইলে নেওয়া কোর্সগুলো চালু, বাকিগুলোতে "কোর্স নিন" (admcq.com এর landing এও একই তালিকা)
+// প্রোফাইলে নেওয়া কোর্সগুলো চালু, বাকিগুলোতে "কোর্স নিন" দেখায়।
 export const COURSES = [
     {
         id: 'med',
@@ -36,6 +36,15 @@ export const COURSES = [
         accent: 'cyan',
         includes: ['বুয়েট, চুয়েট, কুয়েট, রুয়েট প্রশ্ন', 'পদার্থ, রসায়ন, গণিত', 'অধ্যায়ভিত্তিক প্র্যাকটিস ও মডেল টেস্ট', 'আলাদা অ্যানালাইসিস ও র‍্যাঙ্ক'],
     },
+    {
+        id: 'ssc',
+        title: 'SSC Physics',
+        name: 'SSC পদার্থবিজ্ঞান',
+        url: 'https://app.admcq.com',
+        stats: '3,618 MCQ',
+        accent: 'violet',
+        includes: ['SSC পদার্থবিজ্ঞানের MCQ', 'অধ্যায়ভিত্তিক প্র্যাকটিস', 'ভুল প্রশ্নের তালিকা ও বুকমার্ক'],
+    },
 ] as const;
 
 export type CourseId = (typeof COURSES)[number]['id'];
@@ -47,4 +56,5 @@ export const ACCENT = {
     blue: { icon: 'text-blue-600 dark:text-blue-400 bg-blue-500/10', ring: 'hover:border-blue-500/60', dot: 'text-blue-500' },
     amber: { icon: 'text-amber-600 dark:text-amber-400 bg-amber-500/10', ring: 'hover:border-amber-500/60', dot: 'text-amber-500' },
     cyan: { icon: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10', ring: 'hover:border-cyan-500/60', dot: 'text-cyan-500' },
+    violet: { icon: 'text-violet-600 dark:text-violet-400 bg-violet-500/10', ring: 'hover:border-violet-500/60', dot: 'text-violet-500' },
 } as const;

@@ -32,6 +32,7 @@ import { useLang } from '@/lib/i18n';
 import syllabusData from '@/app/constants/syllabusData.json';
 import syllabusKa from '@/app/constants/syllabusKa.json';
 import syllabusKha from '@/app/constants/syllabusKha.json';
+import syllabusSsc from '@/app/constants/syllabusSsc.json';
 import { clientPlatform } from '@/lib/platform';
 import RenderTextOrMath from '@/app/components/RenderTextOrMath';
 
@@ -121,7 +122,7 @@ function CustomDropdown({ options, value, onChange, placeholder }: CustomDropdow
 function AdminCreateExamInner() {
     // ভার্সিটি 'ক' তে অধ্যায়/টপিকের তালিকা আলাদা (পাতা খোলার পরে ঠিকানা/কোর্স দেখে বসে)
     const [syllabus, setSyllabus] = useState(syllabusData as unknown as Syllabus);
-    useEffect(() => { const p = clientPlatform(); if (p === 'ka') setSyllabus(syllabusKa as unknown as Syllabus); if (p === 'kha') setSyllabus(syllabusKha as unknown as Syllabus); }, []);
+    useEffect(() => { const p = clientPlatform(); if (p === 'ka') setSyllabus(syllabusKa as unknown as Syllabus); if (p === 'kha') setSyllabus(syllabusKha as unknown as Syllabus); if (p === 'ssc') setSyllabus(syllabusSsc as unknown as Syllabus); }, []);
     const { isDarkMode, toggleTheme } = useTheme();
     const { t } = useLang();
     const router = useRouter();

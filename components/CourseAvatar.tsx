@@ -13,12 +13,13 @@ const BG: Record<Platform, string> = {
     ka: '#DBEAFE',
     kha: '#FEF3C7',
     eng: '#E0E7FF',
+    ssc: '#EDE9FE',
 };
 
 function Figure({ p }: { p: Platform }) {
     const skin = '#F5CBA7';
     const hair = '#3B2F2F';
-    const coat = p === 'med' ? '#FFFFFF' : p === 'eng' ? '#2563EB' : p === 'kha' ? '#B45309' : '#1D4ED8';
+    const coat = p === 'med' ? '#FFFFFF' : p === 'eng' ? '#2563EB' : p === 'kha' ? '#B45309' : p === 'ssc' ? '#7C3AED' : '#1D4ED8';
     return (
         <svg viewBox="0 0 64 64" className="w-full h-full" aria-hidden>
             <circle cx="32" cy="32" r="32" fill={BG[p]} />

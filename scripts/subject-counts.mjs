@@ -9,7 +9,7 @@ const env = Object.fromEntries(fs.readFileSync(new URL('../.env.local', import.m
     .split('\n').filter((l) => l.includes('=') && !l.trim().startsWith('#')).map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
 const db = createClient({ url: env.TURSO_DATABASE_URL, authToken: env.TURSO_AUTH_TOKEN });
 const VISIBLE = "(error IS NULL OR NOT (error LIKE 'Error:%' OR error LIKE 'pre-explain error:%'))"; // lib/questionVisibility.ts এর নিয়ম
-const TABLES = { med: 'questions', ka: 'ka_questions', kha: 'kha_questions' };
+const TABLES = { med: 'questions', ka: 'ka_questions', kha: 'kha_questions', ssc: 'ssc_questions' };
 
 const out = {};
 for (const [p, table] of Object.entries(TABLES)) {
